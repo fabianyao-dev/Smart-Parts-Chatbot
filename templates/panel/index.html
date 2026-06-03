@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Panel Operativo - Motomex{% endblock %}
+
+{% block content %}
+<div class="border-b border-gray-200 mb-6">
+    <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+        <button id="tabProductos" onclick="switchMainTab('productos')" class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
+            Gestión de Productos
+        </button>
+        <button id="tabLeads" onclick="switchMainTab('leads')" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
+            Gestión de Leads
+        </button>
+    </nav>
+</div>
+
+<div id="seccionProductos" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1 bg-white p-6 border border-gray-200 rounded-lg shadow-sm h-fit">
+        {% include 'panel/components/form_productos.html' %}
+    </div>
+    <div class="lg:col-span-2 bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+        {% include 'panel/components/tabla_productos.html' %}
+    </div>
+</div>
+
+<div id="seccionLeads" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1 bg-white p-6 border border-gray-200 rounded-lg shadow-sm h-fit">
+        {% include 'panel/components/form_leads.html' %}
+    </div>
+    <div class="lg:col-span-2 bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+        {% include 'panel/components/tabla_leads.html' %}
+    </div>
+</div>
+
+<script>
+    // 1. Orquestador de las Pestañas Principales (Productos vs Leads)
+    function switchMainTab(seccion) {
+        const tabProductos = document.getElementById('tabProductos');
+        const tabLeads = document.getElementById('tabLeads');
+        const secProductos = document.getElementById('seccionProductos');
+        const secLeads = document.getElementById('seccionLeads');
+
+        if (seccion === 'productos') {
+            tabProductos.className = "border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
+            tabLeads.className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
+            secProductos.classList.remove('hidden');
+            secLeads.classList.add('hidden');
+        } else {
+            tabLeads.className = "border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
+            tabProductos.className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
+            secLeads.classList.remove('hidden');
+            secProductos.classList.add('hidden');
+        }
+    }
+
+    // 2. Funciones de los Formularios de Productos (Mantenidas de tu código anterior)
+    function switchMetodo(metodo) {
+        const btnProsa = document.getElementById('btnProsa');
+        const btnEstructurado = document.getElementById('btnEstructurado');
+        const formProsa = document.getElementById('formProsa');
+        const formEstructurado = document.getElementById('formEstructurado');
+
+        if (metodo === 'prosa') {
+            btnProsa.className = "w-1/2 text-center py-2 rounded-md font-medium transition bg-blue-900 text-white shadow-sm";
+            btnEstructurado.className = "w-1/2 text-center py-2 rounded-md font-medium transition text-gray-600 hover:text-gray-900";
+            formProsa.classList.remove('hidden');
+            formEstructurado.classList.add('hidden');
+        } else {
+            btnEstructurado.className = "w-1/2 text-center py-2 rounded-md font-medium transition bg-blue-900 text-white shadow-sm";
+            btnProsa.className = "w-1/2 text-center py-2 rounded-md font-medium transition text-gray-600 hover:text-gray-900";
+            formEstructurado.classList.remove('hidden');
+            formProsa.classList.add('hidden');
+        }
+    }
+
+    function deshabilitarBoton(idBoton, textoProcesando) {
+        const boton = document.getElementById(idBoton);
+        boton.disabled = true;
+        boton.innerText = textoProcesando;
+        boton.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+
+    function agregarCompatibilidad() {
+        const container = document.getElementById('compatibilidadContainer');
+        const div = document.createElement('div');
+        div.className = 'flex gap-2 mt-1';
+        div.innerHTML = `<input type="text" name="compatibilidad" class="w-full p-2 border rounded-md" placeholder="Otro modelo compatible"><button type="button" onclick="this.parentElement.remove()" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 rounded-md font-bold">×</button>`;
+        container.appendChild(div);
+    }
+
+    function agregarEspecificacion() {
+        const container = document.getElementById('especificacionesContainer');
+        const div = document.createElement('div');
+        div.className = 'flex gap-2 mt-1';
+        div.innerHTML = `<input type="text" name="especificacion_llave" class="w-1/2 p-2 border rounded-md" placeholder="Clave"><input type="text" name="especificacion_valor" class="w-1/2 p-2 border rounded-md" placeholder="Valor"><button type="button" onclick="this.parentElement.remove()" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 rounded-md font-bold">×</button>`;
+        container.appendChild(div);
+    }
+</script>
+{% endblock %}

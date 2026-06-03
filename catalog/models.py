@@ -12,17 +12,38 @@ class Producto(models.Model):
     compatibilidad_general = models.JSONField() # Lista de autos compatible
     especificaciones = models.JSONField()       # Pares clave-valor técnicos
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True) # Registro automático de cambios [cite: 641]
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    # Cómo se verá el producto en el Panel y la Consola
+    def __str__(self):
+        return f"{self.marca} {self.modelo} ({self.categoria})"
 
 class Lead(models.Model):
     nombre = models.CharField(max_length=255, null=True, blank=True)
     ciudad = models.CharField(max_length=100, null=True, blank=True)
     estado = models.CharField(max_length=100, null=True, blank=True)
-    producto_interes = models.CharField(max_length=255, null=True, blank=True)
+    
+    # Clave foránea: Enlaza directamente al modelo Producto
+    producto_interes = models.ForeignKey(
+        Producto, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name="leads"
+    )
+    
     vehiculo = models.CharField(max_length=100, null=True, blank=True)
-    anio_vehiculo = models.CharField(max_length=50, null=True, blank=True) # Se mantiene como CharField [cite: 630]
+    anio_vehiculo = models.CharField(max_length=50, null=True, blank=True)
     direccion_envio = models.TextField(null=True, blank=True)
     lead_completo = models.BooleanField(default=False)
-    aprobado_por_asesor = models.BooleanField(default=False) # Para el visto bueno humano
+    aprobado_por_asesor = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True) # Para medir tiempos de respuesta
+    updated_at = models.DateTimeField(auto_now=True)
+    is_active = models.BooleanField(default=True)
+
+    # Cómo se verá el Lead en el Panel y la Consola
+    def __str__(self):
+        nombre_display = self.nombre if self.nombre else 'Anónimo'
+        ciudad_display = self.ciudad if self.ciudad else 'Sin Ciudad'
+        return f"Lead: {nombre_display} - {ciudad_display}"

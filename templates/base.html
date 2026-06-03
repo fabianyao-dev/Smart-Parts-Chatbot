@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Motomex Panel{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-50 min-h-screen text-gray-800">
+    {% if user.is_authenticated %}
+    <nav class="bg-blue-900 text-white p-4 shadow-md">
+      <div class="container mx-auto flex justify-between items-center">
+        <h1 class="text-xl font-bold">Smart-Parts Panel</h1>
+        <div class="flex items-center gap-4">
+          <span>Hola, {{ user.username }}</span>
+          <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button
+              type="submit"
+              class="bg-red-600 hover:bg-red-700 px-3 py-1 rounded text-sm transition"
+            >
+              Salir
+            </button>
+          </form>
+        </div>
+      </div>
+    </nav>
+    {% endif %}
+
+    <main class="container mx-auto p-6">
+      {% if messages %}
+      <div class="mb-4">
+        {% for message in messages %}
+        <div
+          class="p-4 rounded-md text-sm {% if message.tags == 'error' %}bg-red-100 text-red-800{% else %}bg-green-100 text-green-800{% endif %} shadow-sm"
+        >
+          {{ message }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %} {% block content %} {% endblock %}
+    </main>
+  </body>
+</html>
