@@ -12,6 +12,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key')
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
+N8N_WEBHOOK_URL = os.getenv('N8N_WEBHOOK_URL')
 # Permitimos hosts de Render y locales
 ALLOWED_HOSTS = ['*'] 
 

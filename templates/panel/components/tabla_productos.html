@@ -6,7 +6,7 @@
     <table class="min-w-full text-sm text-left text-gray-500">
         <thead class="text-xs text-gray-700 uppercase bg-gray-50">
             <tr>
-                <th class="px-4 py-3">Refacción</th>
+                <th class="px-4 py-3">Refacción y Ficha Técnica</th>
                 <th class="px-4 py-3">Ubicación</th>
                 <th class="px-4 py-3">Stock</th>
                 <th class="px-4 py-3">Precio</th>
@@ -14,16 +14,48 @@
         </thead>
         <tbody>
             {% for p in productos %}
-            <tr class="bg-white border-b hover:bg-gray-50">
-                <td class="px-4 py-3 font-medium text-gray-900">{{ p.marca }} {{ p.modelo }} <br><span class="text-xs text-gray-400">{{ p.categoria }}</span></td>
-                <td class="px-4 py-3">{{ p.ciudad }}, {{ p.estado }}</td>
+            <tr class="bg-white border-b hover:bg-gray-50 align-top">
                 <td class="px-4 py-3">
-                    <span class="{% if p.stock > 5 %}text-green-600{% else %}text-red-600{% endif %} font-bold">{{ p.stock }}</span>
+                    <div class="font-bold text-gray-900 text-base">{{ p.marca }} {{ p.modelo }}</div>
+                    <span class="inline-block text-[10px] bg-blue-900 text-white px-2 py-0.5 rounded-full uppercase font-bold tracking-wider mb-3">{{ p.categoria }}</span>
+                    
+                    <div class="mb-3">
+                        <span class="block text-[11px] font-bold uppercase text-gray-400 tracking-tight">Modelos Compatibles:</span>
+                        <div class="flex flex-wrap gap-1 mt-1">
+                            {% for vehiculo in p.compatibilidad_general %}
+                                <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-200 font-medium">
+                                    {{ vehiculo }}
+                                </span>
+                            {% empty %}
+                                <span class="text-xs text-gray-400 italic">No especificada</span>
+                            {% endfor %}
+                        </div>
+                    </div> 
+ 
+                    <div>
+                        <span class="block text-[11px] font-bold uppercase text-gray-400 tracking-tight">Especificaciones Técnicas:</span>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 mt-1 max-w-xs text-xs">
+                            {% for llave, valor in p.especificaciones.items %}
+                                <div class="text-gray-600 border-b border-gray-100 pb-0.5">
+                                    <strong class="text-gray-800 font-semibold">{{ llave }}:</strong> {{ valor }}
+                                </div>
+                            {% empty %}
+                                <div class="text-gray-400 italic col-span-2">Sin especificaciones técnicas</div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </td>
-                <td class="px-4 py-3">${{ p.precio }} {{ p.moneda }}</td>
+                
+                <td class="px-4 py-3 py-4 text-gray-700 font-medium">{{ p.ciudad }}, <br><span class="text-gray-400 text-xs">{{ p.estado }}</span></td>
+                <td class="px-4 py-3 py-4">
+                    <span class="{% if p.stock > 5 %}text-green-600 bg-green-50{% else %}text-red-600 bg-red-50{% endif %} px-2.5 py-1 rounded-md font-bold">
+                        {{ p.stock }} u.
+                    </span>
+                </td>
+                <td class="px-4 py-3 py-4 text-gray-900 font-bold">${{ p.precio }} {{ p.moneda }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="4" class="text-center py-4 text-gray-500">No hay productos registrados en el inventario.</td></tr>
+            <tr><td colspan="4" class="text-center py-8 text-gray-500 font-medium">No hay productos registrados en el inventario.</td></tr>
             {% endfor %}
         </tbody>
     </table>
