@@ -10,12 +10,37 @@
                 <th class="px-4 py-3">Ubicación</th>
                 <th class="px-4 py-3">Stock</th>
                 <th class="px-4 py-3">Precio</th>
+                <th class="px-4 py-3 text-right">Acciones</th>
             </tr>
         </thead>
         <tbody>
             {% for p in productos %}
-            <tr class="bg-white border-b hover:bg-gray-50 align-top">
+            <tr id="prod-row-{{ p.id }}" 
+                class="bg-white border-b hover:bg-blue-50 cursor-pointer align-top transition dynamic-prod-row"
+                onclick="handleProductClick({
+                    id: '{{ p.id }}',
+                    marca: '{{ p.marca|escapejs }}',
+                    modelo: '{{ p.modelo|escapejs }}',
+                    categoria: '{{ p.categoria|escapejs }}',
+                    precio: '{{ p.precio|escapejs }}',
+                    stock: '{{ p.stock|escapejs }}',
+                    ciudad: '{{ p.ciudad|escapejs }}',
+                    estado: '{{ p.estado|escapejs }}'
+                })">
                 <td class="px-4 py-3">
+                    <div id="datos-ocultos-{{ p.id }}" class="hidden">
+                        <div class="compat-data">
+                            {% for c in p.compatibilidad_general %}
+                                <span data-val="{{ c }}"></span>
+                            {% endfor %}
+                        </div>
+                        <div class="specs-data">
+                            {% for key, val in p.especificaciones.items %}
+                                <span data-key="{{ key }}" data-val="{{ val }}"></span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
                     <div class="font-bold text-gray-900 text-base">{{ p.marca }} {{ p.modelo }}</div>
                     <span class="inline-block text-[10px] bg-blue-900 text-white px-2 py-0.5 rounded-full uppercase font-bold tracking-wider mb-3">{{ p.categoria }}</span>
                     
@@ -23,22 +48,18 @@
                         <span class="block text-[11px] font-bold uppercase text-gray-400 tracking-tight">Modelos Compatibles:</span>
                         <div class="flex flex-wrap gap-1 mt-1">
                             {% for vehiculo in p.compatibilidad_general %}
-                                <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-200 font-medium">
-                                    {{ vehiculo }}
-                                </span>
+                                <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-200 font-medium">{{ vehiculo }}</span>
                             {% empty %}
                                 <span class="text-xs text-gray-400 italic">No especificada</span>
                             {% endfor %}
                         </div>
                     </div> 
- 
+
                     <div>
                         <span class="block text-[11px] font-bold uppercase text-gray-400 tracking-tight">Especificaciones Técnicas:</span>
                         <div class="grid grid-cols-2 gap-x-4 gap-y-1 mt-1 max-w-xs text-xs">
                             {% for llave, valor in p.especificaciones.items %}
-                                <div class="text-gray-600 border-b border-gray-100 pb-0.5">
-                                    <strong class="text-gray-800 font-semibold">{{ llave }}:</strong> {{ valor }}
-                                </div>
+                                <div class="text-gray-600 border-b border-gray-100 pb-0.5"><strong class="text-gray-800 font-semibold">{{ llave }}:</strong> {{ valor }}</div>
                             {% empty %}
                                 <div class="text-gray-400 italic col-span-2">Sin especificaciones técnicas</div>
                             {% endfor %}
@@ -46,16 +67,23 @@
                     </div>
                 </td>
                 
-                <td class="px-4 py-3 py-4 text-gray-700 font-medium">{{ p.ciudad }}, <br><span class="text-gray-400 text-xs">{{ p.estado }}</span></td>
+                <td class="px-4 py-3 text-gray-700 font-medium">{{ p.ciudad }}, <br><span class="text-gray-400 text-xs">{{ p.estado }}</span></td>
                 <td class="px-4 py-3 py-4">
-                    <span class="{% if p.stock > 5 %}text-green-600 bg-green-50{% else %}text-red-600 bg-red-50{% endif %} px-2.5 py-1 rounded-md font-bold">
-                        {{ p.stock }} u.
-                    </span>
+                    <span class="{% if p.stock > 5 %}text-green-600 bg-green-50{% else %}text-red-600 bg-red-50{% endif %} px-2.5 py-1 rounded-md font-bold">{{ p.stock }} u.</span>
                 </td>
                 <td class="px-4 py-3 py-4 text-gray-900 font-bold">${{ p.precio }} {{ p.moneda }}</td>
+                
+                <td class="px-4 py-3 text-right" onclick="event.stopPropagation();">
+                    <form action="{% url 'panel_index' %}" method="POST" onsubmit="return confirm('¿Seguro que deseas dar de baja este producto del catálogo?');" class="inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action_type" value="eliminar_producto">
+                        <input type="hidden" name="producto_id" value="{{ p.id }}">
+                        <button type="submit" class="text-red-600 hover:text-red-900 font-semibold text-xs bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded transition">Baja</button>
+                    </form>
+                </td>
             </tr>
             {% empty %}
-            <tr><td colspan="4" class="text-center py-8 text-gray-500 font-medium">No hay productos registrados en el inventario.</td></tr>
+            <tr><td colspan="5" class="text-center py-8 text-gray-500 font-medium">No hay productos registrados en el inventario.</td></tr>
             {% endfor %}
         </tbody>
     </table>

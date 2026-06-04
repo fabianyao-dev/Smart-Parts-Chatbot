@@ -3,18 +3,22 @@
 {% block title %}Panel Operativo - Motomex{% endblock %}
 
 {% block content %}
+
 <div class="border-b border-gray-200 mb-6">
     <nav class="-mb-px flex space-x-8" aria-label="Tabs">
         <button id="tabProductos" onclick="switchMainTab('productos')" class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
             Gestión de Productos
         </button>
         <button id="tabLeads" onclick="switchMainTab('leads')" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
-            Gestión de Leads
+            Cola de Aprobación (Leads)
+        </button>
+        <button id="tabHistorial" onclick="switchMainTab('historial')" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
+            Directorio CRM (Historial)
         </button>
     </nav>
 </div>
 
-<div id="seccionProductos" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div id="seccionProductos" class="grid grid-cols-1 lg:grid-cols-3 gap-6 transition-all duration-300">
     <div class="lg:col-span-1 bg-white p-6 border border-gray-200 rounded-lg shadow-sm h-fit">
         {% include 'panel/components/form_productos.html' %}
     </div>
@@ -23,7 +27,7 @@
     </div>
 </div>
 
-<div id="seccionLeads" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div id="seccionLeads" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 transition-all duration-300">
     <div class="lg:col-span-1 bg-white p-6 border border-gray-200 rounded-lg shadow-sm h-fit">
         {% include 'panel/components/form_leads.html' %}
     </div>
@@ -32,68 +36,172 @@
     </div>
 </div>
 
-<script>
-    // 1. Orquestador de las Pestañas Principales (Productos vs Leads)
-    function switchMainTab(seccion) {
-        const tabProductos = document.getElementById('tabProductos');
-        const tabLeads = document.getElementById('tabLeads');
-        const secProductos = document.getElementById('seccionProductos');
-        const secLeads = document.getElementById('seccionLeads');
+<div id="seccionHistorial" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 transition-all duration-300">
+    <div class="lg:col-span-1 bg-white p-6 border border-gray-200 rounded-lg shadow-sm h-fit">
+        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-center mb-4">
+            <p class="text-xs font-bold text-gray-600">Tip de Operación</p>
+            <p class="text-[11px] text-gray-400 mt-0.5">Al hacer clic en cualquier fila del Historial CRM, puedes cargar y corregir sus datos directamente en el formulario de la pestaña anterior.</p>
+        </div>
+    </div>
+    <div class="lg:col-span-2 bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+        {% include 'panel/components/tabla_leads_historial.html' %}
+    </div>
+</div>
 
-        if (seccion === 'productos') {
-            tabProductos.className = "border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
-            tabLeads.className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
-            secProductos.classList.remove('hidden');
-            secLeads.classList.add('hidden');
-        } else {
-            tabLeads.className = "border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
-            tabProductos.className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
-            secLeads.classList.remove('hidden');
-            secProductos.classList.add('hidden');
-        }
+<script>
+    // --- 1. LÓGICA DE NAVEGACIÓN (3 TABS) ---
+    function switchMainTab(seccion) {
+        const tabs = ['productos', 'leads', 'historial'];
+        const activeCls = "border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
+        const inactiveCls = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
+
+        tabs.forEach(tab => {
+            const btn = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+            const sec = document.getElementById('seccion' + tab.charAt(0).toUpperCase() + tab.slice(1));
+            
+            if (tab === seccion) {
+                btn.className = activeCls;
+                sec.classList.remove('hidden');
+            } else {
+                btn.className = inactiveCls;
+                sec.classList.add('hidden');
+            }
+        });
     }
 
-    // 2. Funciones de los Formularios de Productos (Mantenidas de tu código anterior)
+    // --- 2. LÓGICA DE PRODUCTOS ---
     function switchMetodo(metodo) {
         const btnProsa = document.getElementById('btnProsa');
         const btnEstructurado = document.getElementById('btnEstructurado');
         const formProsa = document.getElementById('formProsa');
         const formEstructurado = document.getElementById('formEstructurado');
-
+        
         if (metodo === 'prosa') {
             btnProsa.className = "w-1/2 text-center py-2 rounded-md font-medium transition bg-blue-900 text-white shadow-sm";
             btnEstructurado.className = "w-1/2 text-center py-2 rounded-md font-medium transition text-gray-600 hover:text-gray-900";
-            formProsa.classList.remove('hidden');
-            formEstructurado.classList.add('hidden');
+            formProsa.classList.remove('hidden'); formEstructurado.classList.add('hidden');
         } else {
             btnEstructurado.className = "w-1/2 text-center py-2 rounded-md font-medium transition bg-blue-900 text-white shadow-sm";
             btnProsa.className = "w-1/2 text-center py-2 rounded-md font-medium transition text-gray-600 hover:text-gray-900";
-            formEstructurado.classList.remove('hidden');
-            formProsa.classList.add('hidden');
+            formEstructurado.classList.remove('hidden'); formProsa.classList.add('hidden');
         }
     }
 
-    function deshabilitarBoton(idBoton, textoProcesando) {
-        const boton = document.getElementById(idBoton);
-        boton.disabled = true;
-        boton.innerText = textoProcesando;
-        boton.classList.add('opacity-50', 'cursor-not-allowed');
+    function handleProductClick(prod) {
+        document.querySelectorAll('.dynamic-prod-row').forEach(row => row.classList.remove('bg-blue-50', 'border-blue-200'));
+        document.getElementById(`prod-row-${prod.id}`).classList.add('bg-blue-50', 'border-blue-200');
+
+        switchMainTab('productos');
+        switchMetodo('estructurado');
+
+        // UI Modo Edición
+        document.getElementById('panelHeaderProductos').innerText = `Editando: ${prod.marca} ${prod.modelo}`;
+        document.getElementById('btnDescartarProducto').classList.remove('hidden'); 
+        
+        const submitBtn = document.getElementById('submitDirectoEstrucutrado');
+        submitBtn.innerText = "Actualizar Producto";
+        submitBtn.className = "w-2/3 bg-purple-900 hover:bg-purple-800 text-white font-medium py-2 rounded-md shadow transition"; 
+
+        document.getElementById('formEstructuradoProductoId').value = prod.id;
+        document.getElementById('formEstructuradoActionType').value = "actualizar_producto"; 
+        document.getElementById('form_marca').value = prod.marca;
+        document.getElementById('form_modelo').value = prod.modelo;
+        document.getElementById('form_categoria').value = prod.categoria;
+        document.getElementById('form_stock').value = prod.stock;
+        document.getElementById('form_precio').value = prod.precio;
+        document.getElementById('form_ciudad').value = prod.ciudad;
+        document.getElementById('form_estado').value = prod.estado;
+
+        // Carga dinámica
+        const compatContainer = document.getElementById('compatibilidadContainerEstrucutrado');
+        compatContainer.innerHTML = '';
+        document.querySelectorAll(`#datos-ocultos-${prod.id} .compat-data span`).forEach(item => crearFilaCompatibilidad(item.getAttribute('data-val')));
+        crearFilaCompatibilidad('', true); // Fila de adición
+
+        const specsContainer = document.getElementById('especificacionesContainerEstrucutrado');
+        specsContainer.innerHTML = '';
+        document.querySelectorAll(`#datos-ocultos-${prod.id} .specs-data span`).forEach(item => crearFilaEspecificacion(item.getAttribute('data-key'), item.getAttribute('data-val')));
+        crearFilaEspecificacion('', '', true); // Fila de adición
     }
 
-    function agregarCompatibilidad() {
-        const container = document.getElementById('compatibilidadContainer');
-        const div = document.createElement('div');
-        div.className = 'flex gap-2 mt-1';
-        div.innerHTML = `<input type="text" name="compatibilidad" class="w-full p-2 border rounded-md" placeholder="Otro modelo compatible"><button type="button" onclick="this.parentElement.remove()" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 rounded-md font-bold">×</button>`;
-        container.appendChild(div);
+    function cancelarSeleccionProducto() {
+        document.querySelectorAll('.dynamic-prod-row').forEach(row => row.classList.remove('bg-blue-50', 'border-blue-200'));
+        document.getElementById('panelHeaderProductos').innerText = "Ingesta de Inventario";
+        document.getElementById('btnDescartarProducto').classList.add('hidden');
+        document.getElementById('submitDirectoEstrucutrado').innerText = "Guardar Directo en DB";
+        document.getElementById('submitDirectoEstrucutrado').className = "w-full bg-blue-900 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-md shadow mt-2 transition";
+        document.getElementById('formEstructurado').reset();
+        document.getElementById('formEstructuradoProductoId').value = '';
+        document.getElementById('formEstructuradoActionType').value = "directo";
+        
+        // Reset containers
+        document.getElementById('compatibilidadContainerEstrucutrado').innerHTML = '';
+        crearFilaCompatibilidad('', true);
+        document.getElementById('especificacionesContainerEstrucutrado').innerHTML = '';
+        crearFilaEspecificacion('', '', true);
     }
 
-    function agregarEspecificacion() {
-        const container = document.getElementById('especificacionesContainer');
+    function crearFilaCompatibilidad(val = '', isAddBtn = false) {
         const div = document.createElement('div');
         div.className = 'flex gap-2 mt-1';
-        div.innerHTML = `<input type="text" name="especificacion_llave" class="w-1/2 p-2 border rounded-md" placeholder="Clave"><input type="text" name="especificacion_valor" class="w-1/2 p-2 border rounded-md" placeholder="Valor"><button type="button" onclick="this.parentElement.remove()" class="bg-red-100 hover:bg-red-200 text-red-700 px-3 rounded-md font-bold">×</button>`;
-        container.appendChild(div);
+        if (isAddBtn) {
+            div.innerHTML = `<input type="text" name="compatibilidad" class="w-full p-2 border rounded-md" placeholder="Modelo compatible"><button type="button" onclick="crearFilaCompatibilidad('', true)" class="bg-gray-200 hover:bg-gray-300 px-3 rounded-md font-bold">+</button>`;
+        } else {
+            div.innerHTML = `<input type="text" name="compatibilidad" class="w-full p-2 border rounded-md" value="${val}"><button type="button" onclick="this.parentElement.remove()" class="bg-red-100 text-red-700 px-3 rounded-md font-bold">×</button>`;
+        }
+        document.getElementById('compatibilidadContainerEstrucutrado').appendChild(div);
+    }
+
+    function crearFilaEspecificacion(key = '', val = '', isAddBtn = false) {
+        const div = document.createElement('div');
+        div.className = 'flex gap-2 mt-1';
+        if (isAddBtn) {
+            div.innerHTML = `<input type="text" name="especificacion_llave" class="w-1/2 p-2 border rounded-md" placeholder="Clave"><input type="text" name="especificacion_valor" class="w-1/2 p-2 border rounded-md" placeholder="Valor"><button type="button" onclick="crearFilaEspecificacion('', '', true)" class="bg-gray-200 hover:bg-gray-300 px-3 rounded-md font-bold">+</button>`;
+        } else {
+            div.innerHTML = `<input type="text" name="especificacion_llave" class="w-1/2 p-2 border rounded-md" value="${key}"><input type="text" name="especificacion_valor" class="w-1/2 p-2 border rounded-md" value="${val}"><button type="button" onclick="this.parentElement.remove()" class="bg-red-100 text-red-700 px-3 rounded-md font-bold">×</button>`;
+        }
+        document.getElementById('especificacionesContainerEstrucutrado').appendChild(div);
+    }
+
+    // --- 3. LÓGICA DE LEADS ---
+    function cargarLeadEnFormulario(lead) {
+        document.querySelectorAll('.dynamic-lead-row').forEach(row => row.classList.remove('bg-purple-50', 'border-purple-200'));
+        const f1 = document.getElementById(`lead-row-${lead.id}`);
+        const f2 = document.getElementById(`lead-hist-row-${lead.id}`);
+        if (f1) f1.classList.add('bg-purple-50', 'border-purple-200');
+        if (f2) f2.classList.add('bg-purple-50', 'border-purple-200');
+        
+        switchMainTab('leads');
+        document.getElementById('leadFormVacio').classList.add('hidden');
+        document.getElementById('formLeadsActivo').classList.remove('hidden');
+        
+        document.getElementById('form_lead_id').value = lead.id;
+        document.getElementById('form_lead_nombre').value = lead.nombre;
+        document.getElementById('form_lead_ciudad').value = lead.ciudad;
+        document.getElementById('form_lead_estado').value = lead.estado;
+        document.getElementById('form_lead_vehiculo').value = lead.vehiculo;
+        document.getElementById('form_lead_anio').value = lead.anio;
+        document.getElementById('form_lead_producto').value = lead.producto;
+        document.getElementById('form_lead_direccion').value = lead.direccion;
+        
+        const checkbox = document.getElementById('form_lead_aprobado');
+        checkbox.checked = lead.aprobado;
+        actualizarUIEstatus(lead.aprobado);
+    }
+
+    function actualizarUIEstatus(isAprobado) {
+        const c = document.getElementById('contenedorEstatusAprobacion');
+        const t = document.getElementById('textoEstatusAprobacion');
+        c.className = isAprobado ? "p-3 rounded-md border border-green-200 bg-green-50 flex items-center justify-between transition" : "p-3 rounded-md border border-yellow-200 bg-yellow-50 flex items-center justify-between transition";
+        t.className = isAprobado ? "text-xs font-black tracking-tight text-green-700" : "text-xs font-black tracking-tight text-yellow-700";
+        t.innerText = isAprobado ? "PROSPECTO APROBADO" : "REVISIÓN PENDIENTE";
+    }
+
+    function cancelarSeleccionLead() {
+        document.querySelectorAll('.dynamic-lead-row').forEach(row => row.classList.remove('bg-purple-50', 'border-purple-200'));
+        document.getElementById('formLeadsActivo').classList.add('hidden');
+        document.getElementById('leadFormVacio').classList.remove('hidden');
+        document.getElementById('formLeadsActivo').reset();
     }
 </script>
 {% endblock %}

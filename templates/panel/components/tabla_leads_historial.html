@@ -1,0 +1,59 @@
+<div class="flex justify-between items-center mb-4">
+    <h3 class="text-lg font-bold text-gray-800">Directorio CRM de Prospectos Aprobados</h3>
+    <span class="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded">{{ leads_historial|length }} Clientes Activos</span>
+</div>
+<div class="overflow-x-auto border-t border-gray-200 pt-4">
+    <table class="min-w-full text-sm text-left text-gray-500">
+        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+            <tr>
+                <th class="px-4 py-3">Cliente / Taller</th>
+                <th class="px-4 py-3">Contacto e Insumos</th>
+                <th class="px-4 py-3">Vehículo</th>
+                <th class="px-4 py-3 text-right">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in leads_historial %}
+            <tr id="lead-hist-row-{{ l.id }}" 
+                class="bg-white border-b hover:bg-purple-50 cursor-pointer transition dynamic-lead-row"
+                onclick="cargarLeadEnFormulario({
+                    id: '{{ l.id }}',
+                    nombre: '{{ l.nombre|default_if_none:""|escapejs }}',
+                    ciudad: '{{ l.ciudad|default_if_none:""|escapejs }}',
+                    estado: '{{ l.estado|default_if_none:""|escapejs }}',
+                    vehiculo: '{{ l.vehiculo|default_if_none:""|escapejs }}',
+                    anio: '{{ l.anio_vehiculo|default_if_none:""|escapejs }}',
+                    direccion: '{{ l.direccion_envio|default_if_none:""|escapejs }}',
+                    producto: '{% if l.producto_interes %}{{ l.producto_interes.marca }} {{ l.producto_interes.modelo }}{% else %}No especificado{% endif %}',
+                    aprobado: {{ l.aprobado_por_asesor|yesno:"true,false" }}
+                })">
+                <td class="px-4 py-3">
+                    <div class="font-bold text-gray-900 text-base">{{ l.nombre|default:"Sin Nombre" }}</div>
+                    <span class="text-[10px] text-green-700 font-bold bg-green-50 px-2 py-0.5 rounded-full border border-green-200">VALIDADO HACE POCO</span>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="text-gray-800 font-semibold">{{ l.ciudad|default:"-" }}, {{ l.estado|default:"-" }}</div>
+                    <div class="text-xs text-gray-400 max-w-xs truncate mt-0.5">{{ l.direccion_envio|default:"Sin dirección registrada" }}</div>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="text-gray-800 font-medium">{{ l.vehiculo|default:"-" }}</div>
+                    <div class="text-xs text-gray-400">Año: {{ l.anio_vehiculo|default:"-" }}</div>
+                </td>
+                
+                <td class="px-4 py-3 text-right" onclick="event.stopPropagation();">
+                    <form action="{% url 'panel_index' %}" method="POST" onsubmit="return confirm('¿Seguro que deseas eliminar permanentemente este cliente del Directorio CRM?');" class="inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action_type" value="eliminar_lead">
+                        <input type="hidden" name="lead_id" value="{{ l.id }}">
+                        <button type="submit" class="text-red-600 hover:text-red-900 font-bold text-xs bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md border border-red-200 transition shadow-sm">
+                            Eliminar
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="text-center py-12 text-gray-500 font-medium bg-white">Aún no hay registros de clientes aprobados en el historial del CRM.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
