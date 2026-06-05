@@ -1,7 +1,9 @@
-from rest_framework import viewsets, filters
+from rest_framework import viewsets, filters, status
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
 import os
 import requests
-from .models import Producto, Lead
+from .models import Producto, Lead, Reserva
 from .serializers import ProductoSerializer, LeadSerializer
 from django.contrib import messages
 from django.views.decorators.cache import never_cache
@@ -9,45 +11,130 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.conf import settings
 
-# --- VIEWSETS DE DRF ---
+
+# ==========================================
+# VIEWSETS DE DRF
+# ==========================================
+
 class ProductoViewSet(viewsets.ModelViewSet):
-    queryset = Producto.objects.all()
     serializer_class = ProductoSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ['marca', 'modelo', 'categoria', 'ciudad', 'estado']
 
+    def get_queryset(self):
+        # Solo productos activos en la API
+        return Producto.objects.filter(is_active=True)
+
+
 class LeadViewSet(viewsets.ModelViewSet):
-    queryset = Lead.objects.all()
     serializer_class = LeadSerializer
 
-def custom_404_view(request, exception=None):
-    if request.user.is_authenticated:
-        return redirect('panel_index') 
-    return redirect('login') 
+    def get_queryset(self):
+        # Solo leads activos en la API
+        return Lead.objects.filter(is_active=True)
+
 
 # ==========================================
-# MÓDULOS DE ACCIÓN (Lógica de Negocio Separada)
+# ENDPOINT: CONFIRMAR COMPRA
+# ==========================================
+
+@api_view(['POST'])
+def confirmar_compra(request):
+    """
+    Llamado por n8n cuando el cliente confirma intención de compra.
+    Crea una reserva temporal de 15 minutos con protección anti-concurrencia.
+
+    Body esperado:
+    {
+        "lead_id": 1,
+        "producto_id": 2
+    }
+
+    Respuestas:
+    - 201: Reserva creada exitosamente
+    - 400: Faltan campos requeridos
+    - 404: Lead o Producto no encontrado
+    - 409: Stock insuficiente (otro cliente se adelantó)
+    """
+    lead_id = request.data.get('lead_id')
+    producto_id = request.data.get('producto_id')
+
+    if not lead_id or not producto_id:
+        return Response(
+            {"error": "Se requieren lead_id y producto_id"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        lead = Lead.objects.get(id=lead_id, is_active=True)
+        producto = Producto.objects.get(id=producto_id, is_active=True)
+
+        reserva = Reserva.crear_reserva(
+            producto=producto,
+            lead=lead,
+            cantidad=1,
+            minutos=15
+        )
+
+        # Marcar lead como intención de compra confirmada
+        lead.desea_comprar = True
+        lead.save(update_fields=['desea_comprar', 'updated_at'])
+
+        return Response({
+            "mensaje": "Reserva creada. Un asesor validará la compatibilidad.",
+            "reserva_id": reserva.id,
+            "expira_en": reserva.expira_en,
+            "stock_disponible": producto.stock_disponible,
+            "lead_id": lead.id,
+            "producto": f"{producto.marca} {producto.modelo}"
+        }, status=status.HTTP_201_CREATED)
+
+    except Lead.DoesNotExist:
+        return Response(
+            {"error": "Lead no encontrado"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Producto.DoesNotExist:
+        return Response(
+            {"error": "Producto no encontrado"},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except ValueError as e:
+        # Stock insuficiente: otro cliente se adelantó
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_409_CONFLICT
+        )
+
+
+# ==========================================
+# MÓDULOS DE ACCIÓN (Lógica de Negocio)
 # ==========================================
 
 def procesar_ingesta_prosa(request):
     texto_masivo = request.POST.get('texto_masivo')
     if not texto_masivo:
         return redirect('panel_index')
-        
+
     webhook_url = getattr(settings, 'N8N_WEBHOOK_URL', os.getenv('N8N_WEBHOOK_URL'))
     if not webhook_url:
         messages.error(request, "Error de sistema: Falta configurar el webhook de n8n.")
         return redirect('panel_index')
-    
+
     try:
-        response = requests.post(webhook_url, json={"texto_masivo": texto_masivo}, timeout=45)
+        response = requests.post(
+            webhook_url,
+            json={"texto_masivo": texto_masivo},
+            timeout=45
+        )
         if response.status_code == 200:
             messages.success(request, "¡Catálogo procesado con IA e inyectado con éxito!")
         else:
-            messages.warning(request, f"n8n respondió con error técnico: Código {response.status_code}")
+            messages.warning(request, f"n8n respondió con error: Código {response.status_code}")
     except requests.exceptions.RequestException as e:
-        messages.error(request, f"Fallo de conexión con la IA (n8n): {str(e)}")
+        messages.error(request, f"Fallo de conexión con n8n: {str(e)}")
     return redirect('panel_index')
+
 
 def procesar_ingesta_directa(request):
     try:
@@ -55,8 +142,11 @@ def procesar_ingesta_directa(request):
         compatibilidad_limpia = [c.strip() for c in lista_compatibilidad if c.strip()]
         llaves = request.POST.getlist('especificacion_llave')
         valores = request.POST.getlist('especificacion_valor')
-        
-        diccionario_especificaciones = {k.strip(): v.strip() for k, v in zip(llaves, valores) if k.strip() and v.strip()}
+        diccionario_especificaciones = {
+            k.strip(): v.strip()
+            for k, v in zip(llaves, valores)
+            if k.strip() and v.strip()
+        }
 
         producto, created = Producto.objects.update_or_create(
             marca=request.POST.get('marca'),
@@ -74,12 +164,13 @@ def procesar_ingesta_directa(request):
             }
         )
         if created:
-            messages.success(request, "¡Producto guardado con éxito directamente!")
+            messages.success(request, "¡Producto guardado con éxito!")
         else:
             messages.success(request, f"¡Inventario actualizado para {producto.marca}!")
     except Exception as e:
         messages.error(request, f"Error al guardar: {str(e)}")
     return redirect('panel_index')
+
 
 def procesar_actualizar_lead(request):
     try:
@@ -92,12 +183,24 @@ def procesar_actualizar_lead(request):
         lead.direccion_envio = request.POST.get('direccion_envio')
         aprobado = request.POST.get('aprobado_por_asesor') == 'on'
         lead.aprobado_por_asesor = aprobado
-        lead.lead_completo = bool(lead.nombre and lead.ciudad and lead.direccion_envio and aprobado)
+        lead.lead_completo = bool(
+            lead.nombre and
+            lead.ciudad and
+            lead.direccion_envio and
+            aprobado
+        )
         lead.save()
+
+        # Si el asesor aprobó o rechazó, marcar para notificar al cliente
+        if aprobado is not None:
+            lead.notificado = False
+            lead.save(update_fields=['notificado'])
+
         messages.success(request, f"¡Prospecto '{lead.nombre}' actualizado!")
     except Exception as e:
         messages.error(request, f"Error al actualizar Lead: {str(e)}")
     return redirect('panel_index')
+
 
 def procesar_eliminar_lead(request):
     try:
@@ -109,49 +212,47 @@ def procesar_eliminar_lead(request):
         messages.error(request, f"Error al eliminar Lead: {str(e)}")
     return redirect('panel_index')
 
+
 def procesar_actualizar_producto(request):
-    """
-    Recibe el formulario completo de edición y actualiza el producto en la DB.
-    Utiliza un patrón Upsert inteligente para stock y precio.
-    """
     try:
         producto_id = request.POST.get('producto_id')
         producto = Producto.objects.get(id=producto_id)
-        
-        # Leemos los campos básicos
+
         producto.categoria = request.POST.get('categoria')
         producto.precio = request.POST.get('precio')
         producto.stock = request.POST.get('stock')
         producto.ciudad = request.POST.get('ciudad')
         producto.estado = request.POST.get('estado')
-        
-        # Procesamos las compatibilidades (Lista JSON)
-        lista_compatibilidad = request.POST.getlist('compatibilidad')
-        producto.compatibilidad_general = [c.strip() for c in lista_compatibilidad if c.strip()]
 
-        # Procesamos las especificaciones (Diccionario JSON)
+        lista_compatibilidad = request.POST.getlist('compatibilidad')
+        producto.compatibilidad_general = [
+            c.strip() for c in lista_compatibilidad if c.strip()
+        ]
+
         llaves = request.POST.getlist('especificacion_llave')
         valores = request.POST.getlist('especificacion_valor')
-        diccionario_especificaciones = {}
-        for llave, valor in zip(llaves, valores):
-            if llave.strip() and valor.strip():
-                diccionario_especificaciones[llave.strip()] = valor.strip()
-        producto.especificaciones = diccionario_especificaciones
-        
+        producto.especificaciones = {
+            k.strip(): v.strip()
+            for k, v in zip(llaves, valores)
+            if k.strip() and v.strip()
+        }
+
         producto.save()
-        messages.success(request, f"¡Producto '{producto.marca} {producto.modelo}' actualizado correctamente!")
-        
+        messages.success(
+            request,
+            f"¡Producto '{producto.marca} {producto.modelo}' actualizado!"
+        )
     except Producto.DoesNotExist:
-        messages.error(request, "Error: El producto a actualizar ya no existe.")
+        messages.error(request, "Error: El producto ya no existe.")
     except Exception as e:
-        messages.error(request, f"Error crítico al actualizar el Producto: {str(e)}")
-        
+        messages.error(request, f"Error crítico al actualizar Producto: {str(e)}")
     return redirect('panel_index')
+
 
 def procesar_eliminar_producto(request):
     try:
         producto = Producto.objects.get(id=request.POST.get('producto_id'))
-        producto.is_active = False # Soft delete igual que leads
+        producto.is_active = False
         producto.save()
         messages.success(request, "¡Producto retirado del catálogo!")
     except Exception as e:
@@ -160,15 +261,15 @@ def procesar_eliminar_producto(request):
 
 
 # ==========================================
-# VISTA PRINCIPAL (Orquestador Limpio)
+# VISTA PRINCIPAL (Orquestador)
 # ==========================================
+
 @login_required
-@never_cache 
+@never_cache
 def panel_view(request):
     if request.method == 'POST':
         action_type = request.POST.get('action_type')
-        
-        # Diccionario de enrutamiento (El Patrón de Despacho)
+
         acciones = {
             'prosa': procesar_ingesta_prosa,
             'directo': procesar_ingesta_directa,
@@ -177,38 +278,40 @@ def panel_view(request):
             'actualizar_producto': procesar_actualizar_producto,
             'eliminar_producto': procesar_eliminar_producto,
         }
-        
+
         ejecutar_accion = acciones.get(action_type)
         if ejecutar_accion:
             return ejecutar_accion(request)
         else:
-            messages.error(request, "Acción no reconocida por el sistema.")
+            messages.error(request, "Acción no reconocida.")
             return redirect('panel_index')
 
-    # --- PETICIÓN GET (LECTURA FILTRADA) ---
+    # GET: lectura filtrada
     productos = Producto.objects.filter(is_active=True).order_by('-created_at')
-    leads_pendientes = Lead.objects.filter(is_active=True, aprobado_por_asesor=False).order_by('created_at')
-    leads_historial = Lead.objects.filter(is_active=True, aprobado_por_asesor=True).order_by('-updated_at')
-    
-    # ==================================================
-    # NUEVO: LÓGICA DE NOTIFICACIONES (CEREBRO DE LA CAMPANA)
-    # ==================================================
-    # Filtramos stock menor a 6 (Es decir, 5 o menos)
-    productos_criticos = productos.filter(stock__lte=5) 
-    
+    leads_pendientes = Lead.objects.filter(
+        is_active=True,
+        aprobado_por_asesor=None  # null = pendiente de revisión
+    ).order_by('created_at')
+    leads_historial = Lead.objects.filter(
+        is_active=True,
+        aprobado_por_asesor__isnull=False  # True o False = ya revisados
+    ).order_by('-updated_at')
+
+    productos_criticos = productos.filter(stock__lte=5)
+
     alertas_leads = leads_pendientes.count() > 0
     alertas_stock = productos_criticos.count() > 0
-    
-    # Sumamos cuántas alertas tenemos para pintar el "globo rojo"
+
     total_alertas = 0
-    if alertas_leads: total_alertas += 1
-    if alertas_stock: total_alertas += 1
+    if alertas_leads:
+        total_alertas += 1
+    if alertas_stock:
+        total_alertas += 1
 
     context = {
         'productos': productos,
         'leads_pendientes': leads_pendientes,
         'leads_historial': leads_historial,
-        # Inyectamos las variables de alerta al template
         'productos_criticos': productos_criticos,
         'alertas_leads': alertas_leads,
         'alertas_stock': alertas_stock,
