@@ -28,14 +28,22 @@ class ProductoViewSet(viewsets.ModelViewSet):
         search = self.request.query_params.get('search', None)
 
         if search:
-            queryset = queryset.filter(
-                Q(marca__icontains=search) |
-                Q(modelo__icontains=search) |
-                Q(categoria__icontains=search) |
-                Q(ciudad__icontains=search) |
-                Q(estado__icontains=search) |
-                Q(compatibilidad_general__icontains=search)
-            )
+            # Separamos la búsqueda en palabras individuales (ej: "bateria versa" -> ["bateria", "versa"])
+            keywords = search.split()
+            
+            # Encadenar .filter() en un ciclo FOR aplica un 'AND' en SQL para cada palabra.
+            # Así obligamos a que TODAS las palabras existan en algún lugar del producto.
+            for keyword in keywords:
+                queryset = queryset.filter(
+                    Q(marca__icontains=keyword) |
+                    Q(modelo__icontains=keyword) |
+                    Q(categoria__icontains=keyword) |
+                    Q(ciudad__icontains=keyword) |
+                    Q(estado__icontains=keyword) |
+                    Q(compatibilidad_general__icontains=keyword) |
+                    # Agregamos esto para que también busque dentro de tu diccionario JSON
+                    Q(especificaciones__icontains=keyword) 
+                )
 
         return queryset
 
