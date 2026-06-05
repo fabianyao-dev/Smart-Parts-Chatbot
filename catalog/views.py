@@ -10,6 +10,7 @@ from django.views.decorators.cache import never_cache
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.conf import settings
+from .webhooks import enviar_mensaje_estado_lead_por_evolution
 
 
 # ==========================================
@@ -172,9 +173,10 @@ def procesar_ingesta_directa(request):
     return redirect('panel_index')
 
 
-def procesar_actualizar_lead(request):
+def procesar_actualizacion_lead_desde_panel(request):
     try:
         lead = Lead.objects.get(id=request.POST.get('lead_id'))
+        estado_aprobacion_anterior = lead.aprobado_por_asesor
         # Solo actualiza campos enviados para evitar borrar datos en formularios parciales.
         if 'nombre' in request.POST:
             lead.nombre = request.POST.get('nombre')
@@ -201,10 +203,19 @@ def procesar_actualizar_lead(request):
         )
         lead.save()
 
-        # Si el asesor aprobó o rechazó, marcar para notificar al cliente
-        if aprobado_enviado:
-            lead.notificado = False
-            lead.save(update_fields=['notificado'])
+        if aprobado_enviado and estado_aprobacion_anterior != lead.aprobado_por_asesor:
+            try:
+                enviar_mensaje_estado_lead_por_evolution(lead, lead.aprobado_por_asesor)
+                lead.notificado = True
+                lead.save(update_fields=['notificado'])
+                mensajes_estado = 'aprobado' if lead.aprobado_por_asesor else 'rechazado'
+                messages.success(request, f"¡Prospecto '{lead.nombre}' actualizado y mensaje de {mensajes_estado} enviado por WhatsApp!")
+                return redirect('panel_index')
+            except Exception as error_envio:
+                lead.notificado = False
+                lead.save(update_fields=['notificado'])
+                messages.warning(request, f"¡Prospecto '{lead.nombre}' actualizado, pero no se pudo enviar el mensaje por WhatsApp: {str(error_envio)}")
+                return redirect('panel_index')
 
         messages.success(request, f"¡Prospecto '{lead.nombre}' actualizado!")
     except Exception as e:
@@ -283,7 +294,7 @@ def panel_view(request):
         acciones = {
             'prosa': procesar_ingesta_prosa,
             'directo': procesar_ingesta_directa,
-            'actualizar_lead': procesar_actualizar_lead,
+            'actualizar_lead': procesar_actualizacion_lead_desde_panel,
             'eliminar_lead': procesar_eliminar_lead,
             'actualizar_producto': procesar_actualizar_producto,
             'eliminar_producto': procesar_eliminar_producto,
