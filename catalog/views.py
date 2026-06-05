@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db import transaction
 import os
+import unicodedata
 import requests
 from .models import Producto, Lead, Reserva
 from .serializers import ProductoSerializer, LeadSerializer
@@ -24,12 +25,22 @@ from django.db.models import TextField, Q
 class ProductoViewSet(viewsets.ModelViewSet):
     serializer_class = ProductoSerializer
 
+    @staticmethod
+    def _normalize_search_text(value):
+        if value is None:
+            return ""
+        texto = str(value).strip().lower()
+        return ''.join(
+            c for c in unicodedata.normalize('NFKD', texto)
+            if not unicodedata.combining(c)
+        )
+
     def get_queryset(self):
         queryset = Producto.objects.filter(is_active=True)
         search = self.request.query_params.get('search', None)
 
         if search:
-            queryset = queryset.filter(
+            queryset_db = queryset.filter(
                 Q(marca__icontains=search) |
                 Q(modelo__icontains=search) |
                 Q(categoria__icontains=search) |
@@ -38,6 +49,27 @@ class ProductoViewSet(viewsets.ModelViewSet):
                 Q(compatibilidad_general__icontains=search) |
                 Q(especificaciones__icontains=search)
             )
+
+            # Fallback para tolerar acentos cuando el motor no hace matching
+            # acento-insensible (ej. "bateria" vs "Batería").
+            if queryset_db.exists():
+                queryset = queryset_db
+            else:
+                termino = self._normalize_search_text(search)
+                ids = []
+                for producto in queryset:
+                    bloque = " ".join([
+                        producto.marca or "",
+                        producto.modelo or "",
+                        producto.categoria or "",
+                        producto.ciudad or "",
+                        producto.estado or "",
+                        str(producto.compatibilidad_general or ""),
+                        str(producto.especificaciones or ""),
+                    ])
+                    if termino in self._normalize_search_text(bloque):
+                        ids.append(producto.id)
+                queryset = queryset.filter(id__in=ids)
 
         return queryset
 
