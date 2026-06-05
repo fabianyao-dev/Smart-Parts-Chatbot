@@ -125,7 +125,8 @@ def procesar_ingesta_prosa(request):
     if not texto_masivo:
         return redirect('panel_index')
 
-    webhook_url = getattr(settings, 'N8N_WEBHOOK_URL', os.getenv('N8N_WEBHOOK_URL'))
+    webhook_url = getattr(settings, 'N8N_WEBHOOK_URL', '') or os.getenv('N8N_WEBHOOK_URL', '')
+    webhook_url = webhook_url.strip().strip('"').strip("'")
     if not webhook_url:
         messages.error(request, "Error de sistema: Falta configurar el webhook de n8n.")
         return redirect('panel_index')
@@ -136,10 +137,21 @@ def procesar_ingesta_prosa(request):
             json={"texto_masivo": texto_masivo},
             timeout=45
         )
-        if response.status_code == 200:
+        if 200 <= response.status_code < 300:
             messages.success(request, "¡Catálogo procesado con IA e inyectado con éxito!")
+        elif response.status_code == 404 and 'webhook-test' in webhook_url:
+            messages.warning(
+                request,
+                "n8n respondió 404. Estás usando una URL de prueba (webhook-test). "
+                "En Render debes usar la URL de producción (/webhook/...) y activar el workflow."
+            )
         else:
-            messages.warning(request, f"n8n respondió con error: Código {response.status_code}")
+            detalle = (response.text or '').strip().replace('\n', ' ')[:180]
+            messages.warning(
+                request,
+                f"n8n respondió con error: Código {response.status_code}. "
+                f"Detalle: {detalle or 'sin detalle'}"
+            )
     except requests.exceptions.RequestException as e:
         messages.error(request, f"Fallo de conexión con n8n: {str(e)}")
     return redirect('panel_index')
