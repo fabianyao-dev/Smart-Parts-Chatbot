@@ -151,7 +151,7 @@ def crear_o_actualizar_lead_pendiente_desde_evolution(payload):
             'nombre': nombre_base,
             'desea_comprar': None,
             'lead_completo': False,
-            'aprobado_por_asesor': None,  # None = pendiente (sin revisar)
+            'aprobado_por_asesor': None,   
             'notificado': False,
             'is_active': True,
         }
@@ -163,16 +163,11 @@ def crear_o_actualizar_lead_pendiente_desde_evolution(payload):
     if lead.nombre != nombre_base and nombre:
         lead.nombre = nombre_base
         campos_actualizados.append('nombre')
-
-    # Reactivar si estaba inactivo (eliminado del panel)
+ 
     if not lead.is_active:
         lead.is_active = True
         campos_actualizados.append('is_active')
-
-    # IMPORTANTE: NO resetear aprobado_por_asesor si el lead ya fue revisado.
-    # Un mensaje nuevo de un cliente ya aprobado o rechazado no debe sacarlo
-    # del historial automáticamente. El asesor decide si reabrir desde el panel.
-    # Solo se resetea si el lead es nuevo (created=True, ya manejado por defaults).
+ 
 
     if campos_actualizados:
         lead.save(update_fields=campos_actualizados)

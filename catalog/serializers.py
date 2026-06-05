@@ -2,8 +2,7 @@ from rest_framework import serializers
 from .models import Producto, Lead
 
 
-class ProductoSerializer(serializers.ModelSerializer):
-    # Expone stock_disponible (property) como campo de solo lectura
+class ProductoSerializer(serializers.ModelSerializer): 
     stock_disponible = serializers.ReadOnlyField()
 
     class Meta:

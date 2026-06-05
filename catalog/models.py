@@ -2,7 +2,13 @@ from django.db import models
 from django.utils import timezone
 from datetime import timedelta
 
+class NumeroAutorizado(models.Model):
+    telefono = models.CharField(max_length=20, unique=True, verbose_name="Número de WhatsApp")
+    agregado_en = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return self.telefono
+    
 class Producto(models.Model):
     marca = models.CharField(max_length=100)
     modelo = models.CharField(max_length=100)
@@ -47,8 +53,7 @@ class Lead(models.Model):
     telefono = models.CharField(max_length=20, null=True, blank=True)
     ciudad = models.CharField(max_length=100, null=True, blank=True)
     estado = models.CharField(max_length=100, null=True, blank=True)
-
-    # Datos del vehículo y producto
+ 
     producto_interes = models.ForeignKey(
         'Producto',
         on_delete=models.SET_NULL,
@@ -59,17 +64,13 @@ class Lead(models.Model):
     vehiculo = models.CharField(max_length=100, null=True, blank=True)
     anio_vehiculo = models.CharField(max_length=50, null=True, blank=True)
     direccion_envio = models.TextField(null=True, blank=True)
-
-    # Estado del lead
+ 
     desea_comprar = models.BooleanField(null=True, default=None)
     cantidad_solicitada = models.PositiveIntegerField(default=1)
     lead_completo = models.BooleanField(default=False)
-
-    # Gestión del asesor
-    # null=pendiente, True=aprobado, False=rechazado
+ 
     aprobado_por_asesor = models.BooleanField(null=True, default=None)
-
-    # Notificación al cliente
+ 
     notificado = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)

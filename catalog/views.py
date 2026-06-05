@@ -5,7 +5,7 @@ from django.db import transaction
 import os
 import unicodedata
 import requests
-from .models import Producto, Lead, Reserva
+from .models import Producto, Lead, Reserva,NumeroAutorizado
 from .serializers import ProductoSerializer, LeadSerializer
 from django.contrib import messages
 from django.views.decorators.cache import never_cache
@@ -13,14 +13,11 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.conf import settings
 from django.utils import timezone
-from .webhooks import enviar_mensaje_estado_lead_por_evolution
-from django.db.models.functions import Cast
-from django.db.models import TextField, Q
+from .webhooks import enviar_mensaje_estado_lead_por_evolution 
+from django.db.models import  Q
 
 
-# ==========================================
-# VIEWSETS DE DRF
-# ==========================================
+ 
 
 class ProductoViewSet(viewsets.ModelViewSet):
     serializer_class = ProductoSerializer
@@ -108,11 +105,7 @@ def calcular_lead_completo(lead):
 
     return lead.producto_interes.stock_disponible >= cantidad
 
-
-# ==========================================
-# ENDPOINT: CONFIRMAR COMPRA
-# ==========================================
-
+  
 @api_view(['POST'])
 def confirmar_compra(request):
     """
@@ -155,8 +148,7 @@ def confirmar_compra(request):
         with transaction.atomic():
             lead = Lead.objects.select_for_update().get(id=lead_id, is_active=True)
             producto = Producto.objects.select_for_update().get(id=producto_id, is_active=True)
-
-            # Candado 1: mantener una sola reserva activa/no expirada por lead + producto.
+ 
             reserva = Reserva.objects.select_for_update().filter(
                 lead=lead,
                 producto=producto,
@@ -187,8 +179,7 @@ def confirmar_compra(request):
                     minutos=15
                 )
                 mensaje = "Reserva creada. Un asesor validará la compatibilidad."
-
-            # Candado 2: evitar dobles reservas activas para el mismo lead en otros productos.
+ 
             Reserva.objects.filter(
                 lead=lead,
                 activa=True,
@@ -227,11 +218,7 @@ def confirmar_compra(request):
             status=status.HTTP_409_CONFLICT
         )
 
-
-# ==========================================
-# MÓDULOS DE ACCIÓN (Lógica de Negocio)
-# ==========================================
-
+ 
 def procesar_ingesta_prosa(request):
     texto_masivo = request.POST.get('texto_masivo')
     if not texto_masivo:
@@ -336,9 +323,7 @@ def procesar_actualizacion_lead_desde_panel(request):
                     raise ValueError("Para rechazar una venta ya aprobada, primero reabre la venta.")
 
                 lead.aprobado_por_asesor = nuevo_estado_venta
-
-            # Al aprobar venta, confirmar reserva activa y descontar stock real.
-            # Si no existe reserva, se descuenta 1 unidad del producto asociado al lead.
+ 
             if estado_aprobacion_anterior != lead.aprobado_por_asesor:
                 if lead.aprobado_por_asesor is True:
                     reserva_activa = Reserva.objects.filter(
@@ -369,8 +354,7 @@ def procesar_actualizacion_lead_desde_panel(request):
 
             lead.lead_completo = calcular_lead_completo(lead)
             lead.save()
-
-        # Notificar al cliente solo si cambió el estado de aprobacion de venta
+ 
         if estado_aprobacion_anterior != lead.aprobado_por_asesor:
             try:
                 enviar_mensaje_estado_lead_por_evolution(lead, lead.aprobado_por_asesor)
@@ -409,8 +393,7 @@ def procesar_reabrir_lead(request):
             lead = Lead.objects.select_for_update().get(id=request.POST.get('lead_id'))
             estado_anterior = lead.aprobado_por_asesor
             campos = []
-
-            # Si la venta estaba aprobada, reponer stock al reabrir.
+ 
             if estado_anterior is True and lead.producto_interes_id:
                 producto = Producto.objects.select_for_update().get(id=lead.producto_interes_id)
                 cantidad_a_reponer = max(lead.cantidad_solicitada or 1, 1)
@@ -498,10 +481,7 @@ def procesar_eliminar_producto(request):
         messages.error(request, f"Error al eliminar Producto: {str(e)}")
     return redirect('panel_index')
 
-
-# ==========================================
-# VISTA PRINCIPAL (Orquestador)
-# ==========================================
+ 
 
 @login_required
 @never_cache
@@ -517,6 +497,8 @@ def panel_view(request):
             'eliminar_lead': procesar_eliminar_lead,
             'actualizar_producto': procesar_actualizar_producto,
             'eliminar_producto': procesar_eliminar_producto,
+            'agregar_numero': procesar_agregar_numero,    
+            'eliminar_numero': procesar_eliminar_numero,
         }
 
         ejecutar_accion = acciones.get(action_type)
@@ -560,6 +542,7 @@ def panel_view(request):
         total_alertas += 1
     if alertas_stock:
         total_alertas += 1
+        numeros_autorizados = NumeroAutorizado.objects.all().order_by('-agregado_en')
 
     context = {
         'productos': productos,
@@ -569,6 +552,7 @@ def panel_view(request):
         'alertas_leads': alertas_leads,
         'alertas_stock': alertas_stock,
         'total_alertas': total_alertas,
+        'numeros_autorizados': numeros_autorizados,
     }
     return render(request, 'panel/index.html', context)
 
@@ -577,3 +561,19 @@ def custom_404_view(request, exception):
     if request.user.is_authenticated:
         return redirect('panel_index')
     return redirect('login')
+
+def procesar_agregar_numero(request):
+    telefono = request.POST.get('telefono', '').strip()
+    if telefono:
+        NumeroAutorizado.objects.get_or_create(telefono=telefono)
+        messages.success(request, f"¡Número {telefono} autorizado con éxito!")
+    else:
+        messages.error(request, "El número no puede estar vacío.")
+    return redirect('panel_index')
+
+def procesar_eliminar_numero(request):
+    numero_id = request.POST.get('numero_id')
+    if numero_id:
+        NumeroAutorizado.objects.filter(id=numero_id).delete()
+        messages.success(request, "Número eliminado de la lista de acceso.")
+    return redirect('panel_index')

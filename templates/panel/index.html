@@ -15,6 +15,9 @@
         <button id="tabHistorial" onclick="switchMainTab('historial')" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
             Gestion de Leads
         </button>
+        <button id="tabAccesos" onclick="switchMainTab('accesos')" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
+            Accesos WP
+        </button>
     </nav>
 </div>
 
@@ -45,10 +48,13 @@
     </div>
 </div>
 
-<script>
-    // ==========================================
-    // UTILIDADES DE FILTRO
-    // ==========================================
+<div id="seccionAccesos" class="hidden grid grid-cols-1 gap-6 transition-all duration-300">
+    <div class="bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
+        {% include 'panel/components/tabla_accesos.html' %}
+    </div>
+</div>
+
+<script> 
 
     function normalizeFilterValue(value) {
         return (value || '').toString().trim().toLowerCase();
@@ -163,14 +169,10 @@
             switchMainTab('leads');
             clearLeadsFilter();
         }
-    }
-
-    // ==========================================
-    // NAVEGACIÓN (3 TABS)
-    // ==========================================
+    } 
 
     function switchMainTab(seccion) {
-        const tabs = ['productos', 'leads', 'historial'];
+        const tabs = ['productos', 'leads', 'historial', 'accesos'];
         const activeCls = "border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
         const inactiveCls = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
 
@@ -187,10 +189,7 @@
             }
         });
     }
-
-    // ==========================================
-    // LÓGICA DE PRODUCTOS
-    // ==========================================
+ 
 
     function switchMetodo(metodo) {
         const btnProsa = document.getElementById('btnProsa');
@@ -282,39 +281,13 @@
         document.getElementById('especificacionesContainerEstrucutrado').appendChild(div);
     }
 
-    // ==========================================
-    // LÓGICA DE LEADS — ESTADO EN 3 VALORES
-    // ==========================================
-
-    /**
-     * Normaliza el valor de aprobado_por_asesor que llega desde el template.
-     * Django yesno:"true,false,null" genera la string "null" para None.
-     * Necesitamos convertirla a JS null para distinguirla de false.
-     *
-     *   "true"  → true
-     *   "false" → false
-     *   "null"  → null
-     *   true    → true   (por si ya viene como booleano)
-     *   false   → false
-     */
+ 
     function parsearEstadoAprobacion(val) {
         if (val === 'true' || val === true) return true;
         if (val === 'false' || val === false) return false;
         return null; // "null", null, undefined → pendiente sin revisar
     }
-
-    function marcarCambioEstado(inputId) {
-        const flag = document.getElementById(inputId);
-        if (flag) flag.value = '1';
-    }
-
-    /**
-    * Actualiza el bloque de estatus de venta en el formulario de la cola.
-     * Maneja los 3 estados posibles:
-    *   true  → VENTA APROBADA     (verde)
-    *   false → VENTA RECHAZADA    (rojo)
-     *   null  → SIN REVISAR           (amarillo)
-     */
+ 
     function actualizarUIEstatus(val) {
         const estado = parsearEstadoAprobacion(val);
         const c = document.getElementById('contenedorEstatusAprobacion');
@@ -334,10 +307,7 @@
             t.innerText = "SIN REVISAR";
         }
     }
-
-    /**
-     * Igual que actualizarUIEstatus pero para el formulario del historial.
-     */
+ 
     function actualizarUIEstatusHistorial(val) {
         const estado = parsearEstadoAprobacion(val);
         const c = document.getElementById('contenedorEstatusAprobacionHistorial');
@@ -375,13 +345,10 @@
         document.getElementById('form_lead_anio').value = lead.anio;
         document.getElementById('form_lead_producto').value = lead.producto;
         document.getElementById('form_lead_cantidad').value = lead.cantidad || 1;
-        document.getElementById('form_lead_direccion').value = lead.direccion;
-
-        // Parsear correctamente el valor de aprobación (puede venir como string "null")
+        document.getElementById('form_lead_direccion').value = lead.direccion; 
         const estadoAprobacion = parsearEstadoAprobacion(lead.aprobado);
         const checkbox = document.getElementById('form_lead_aprobado');
         checkbox.checked = estadoAprobacion === true;
-        document.getElementById('form_lead_forzar_estado').value = '0';
         actualizarUIEstatus(estadoAprobacion);
     }
 
@@ -390,7 +357,6 @@
         document.getElementById('formLeadsActivo').classList.add('hidden');
         document.getElementById('leadFormVacio').classList.remove('hidden');
         document.getElementById('formLeadsActivo').reset();
-        document.getElementById('form_lead_forzar_estado').value = '0';
     }
 
     function cargarLeadEnFormularioHistorial(lead) {
@@ -410,13 +376,10 @@
         document.getElementById('form_hist_lead_anio').value = lead.anio;
         document.getElementById('form_hist_lead_producto').value = lead.producto;
         document.getElementById('form_hist_lead_cantidad').value = lead.cantidad || 1;
-        document.getElementById('form_hist_lead_direccion').value = lead.direccion;
-
-        // Parsear correctamente el valor de aprobación (puede venir como string "null")
+        document.getElementById('form_hist_lead_direccion').value = lead.direccion; 
         const estadoAprobacion = parsearEstadoAprobacion(lead.aprobado);
         const checkbox = document.getElementById('form_hist_lead_aprobado');
         checkbox.checked = estadoAprobacion === true;
-        document.getElementById('form_hist_lead_forzar_estado').value = '0';
         actualizarUIEstatusHistorial(estadoAprobacion);
     }
 
@@ -425,7 +388,6 @@
         document.getElementById('formLeadsHistorialActivo').classList.add('hidden');
         document.getElementById('leadFormHistorialVacio').classList.remove('hidden');
         document.getElementById('formLeadsHistorialActivo').reset();
-        document.getElementById('form_hist_lead_forzar_estado').value = '0';
     }
 
     function deshabilitarBoton(id, texto) {

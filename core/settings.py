@@ -1,9 +1,8 @@
 import os
 from pathlib import Path
-import dj_database_url # Para procesar la URL de Render [cite: 578]
-from dotenv import load_dotenv # Para leer variables de entorno seguras [cite: 578, 580]
-
-# 1. Cargar variables desde el archivo .env
+import dj_database_url  
+from dotenv import load_dotenv  
+ 
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -12,8 +11,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-fallback-key')
 
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
-N8N_WEBHOOK_URL = os.getenv('N8N_WEBHOOK_URL')
-# Permitimos hosts de Render y locales
+N8N_WEBHOOK_URL = os.getenv('N8N_WEBHOOK_URL') 
 ALLOWED_HOSTS = ['*'] 
 
 # 4. Aplicaciones del proyecto
@@ -24,13 +22,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',  # Requerido para la API [cite: 509]
-    'catalog',         # Tu aplicación de refacciones [cite: 571]
+    'rest_framework',   
+    'catalog',          
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware', # Para servir archivos estáticos en Render
+    'whitenoise.middleware.WhiteNoiseMiddleware',  
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -43,8 +41,7 @@ ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        # Aseguramos que Django busque en la carpeta raíz 'templates'
+        'BACKEND': 'django.template.backends.django.DjangoTemplates', 
         'DIRS': [os.path.join(BASE_DIR, 'templates')], 
         'APP_DIRS': True,
         'OPTIONS': {
@@ -59,9 +56,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'core.wsgi.application'
-
-# 5. BASE DE DATOS: Configuración dinámica para Render [cite: 567, 582]
-# dj-database-url tomará la DATABASE_URL de tu .env o de Render
+ 
 DATABASES = {
     'default': dj_database_url.config(
         default=os.getenv('DATABASE_URL'),
