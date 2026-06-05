@@ -175,24 +175,34 @@ def procesar_ingesta_directa(request):
 def procesar_actualizar_lead(request):
     try:
         lead = Lead.objects.get(id=request.POST.get('lead_id'))
-        lead.nombre = request.POST.get('nombre')
-        lead.ciudad = request.POST.get('ciudad')
-        lead.estado = request.POST.get('estado')
-        lead.vehiculo = request.POST.get('vehiculo')
-        lead.anio_vehiculo = request.POST.get('anio_vehiculo')
-        lead.direccion_envio = request.POST.get('direccion_envio')
-        aprobado = request.POST.get('aprobado_por_asesor') == 'on'
-        lead.aprobado_por_asesor = aprobado
+        # Solo actualiza campos enviados para evitar borrar datos en formularios parciales.
+        if 'nombre' in request.POST:
+            lead.nombre = request.POST.get('nombre')
+        if 'ciudad' in request.POST:
+            lead.ciudad = request.POST.get('ciudad')
+        if 'estado' in request.POST:
+            lead.estado = request.POST.get('estado')
+        if 'vehiculo' in request.POST:
+            lead.vehiculo = request.POST.get('vehiculo')
+        if 'anio_vehiculo' in request.POST:
+            lead.anio_vehiculo = request.POST.get('anio_vehiculo')
+        if 'direccion_envio' in request.POST:
+            lead.direccion_envio = request.POST.get('direccion_envio')
+
+        aprobado_enviado = 'aprobado_por_asesor' in request.POST
+        if aprobado_enviado:
+            lead.aprobado_por_asesor = request.POST.get('aprobado_por_asesor') == 'on'
+
         lead.lead_completo = bool(
             lead.nombre and
             lead.ciudad and
             lead.direccion_envio and
-            aprobado
+            lead.aprobado_por_asesor
         )
         lead.save()
 
         # Si el asesor aprobó o rechazó, marcar para notificar al cliente
-        if aprobado is not None:
+        if aprobado_enviado:
             lead.notificado = False
             lead.save(update_fields=['notificado'])
 
