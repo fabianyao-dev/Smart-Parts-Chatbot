@@ -136,6 +136,18 @@
                             Aprobar Lead
                         </button>
                     </form>
+                    <form action="{% url 'panel_index' %}" method="POST" class="inline ml-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action_type" value="actualizar_lead">
+                        <input type="hidden" name="lead_id" value="{{ l.id }}">
+                        <input type="hidden" name="nombre" value="{{ l.nombre|default:'Anónimo' }}">
+                        <input type="hidden" name="ciudad" value="{{ l.ciudad|default:'' }}">
+                        <input type="hidden" name="estado" value="{{ l.estado|default:'' }}">
+                        <input type="hidden" name="aprobado_por_asesor" value="off">
+                        <button type="submit" class="bg-red-600 text-white px-3 py-1.5 text-xs font-bold rounded hover:bg-red-700 transition shadow-sm">
+                            No aprobar
+                        </button>
+                    </form>
                 </td>
             </tr>
             {% empty %}

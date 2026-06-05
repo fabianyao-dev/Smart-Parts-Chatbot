@@ -43,7 +43,7 @@ def n8n_catalog_webhook(request):
 @csrf_exempt
 def evolution_whatsapp_webhook(request):
     """
-    Recibe los mensajes entrantes de WhatsApp desde Evolution API.
+    Envía mensajes de estatus de leads de WhatsApp desde Evolution API.
     """
     if request.method == 'POST':
         try:
