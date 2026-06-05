@@ -318,3 +318,9 @@ def panel_view(request):
         'total_alertas': total_alertas,
     }
     return render(request, 'panel/index.html', context)
+
+
+def custom_404_view(request, exception):
+    if request.user.is_authenticated:
+        return redirect('panel_index')
+    return redirect('login')
