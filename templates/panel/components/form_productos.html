@@ -1,9 +1,9 @@
-<h3 id="panelHeaderProductos" class="text-lg font-bold text-blue-900 mb-2">Ingesta de Inventario</h3>
-<p id="panelSubHeaderProductos" class="text-xs text-gray-600 mb-4">Selecciona el método de entrada preferido para actualizar el catálogo.</p>
+<h3 id="panelHeaderProductos" class="text-lg font-bold text-blue-900 mb-2">Ingreso de Inventario</h3>
+<p id="panelSubHeaderProductos" class="text-xs text-gray-600 mb-4">Selecciona el método de ingreso para actualizar el catálogo.</p>
 
 <div id="mainProductFormTabs" class="flex bg-gray-100 p-1 rounded-md mb-6 text-sm">
-    <button id="btnProsa" onclick="switchMetodo('prosa')" class="w-1/2 text-center py-2 rounded-md font-medium transition bg-blue-900 text-white shadow-sm">Texto en Prosa (IA)</button>
-    <button id="btnEstructurado" onclick="switchMetodo('estructurado')" class="w-1/2 text-center py-2 rounded-md font-medium transition text-gray-600 hover:text-gray-900">Campos Directos</button>
+    <button id="btnProsa" onclick="switchMetodo('prosa')" class="w-1/2 text-center py-2 rounded-md font-medium transition bg-blue-900 text-white shadow-sm">Ingreso por Texto (IA)</button>
+    <button id="btnEstructurado" onclick="switchMetodo('estructurado')" class="w-1/2 text-center py-2 rounded-md font-medium transition text-gray-600 hover:text-gray-900">Ingreso por Campos</button>
 </div>
 
 <form action="{% url 'panel_index' %}" method="POST" id="formProsa" onsubmit="deshabilitarBoton('submitProsa', 'Procesando con IA...')">
@@ -13,7 +13,7 @@
         <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Descripción del Catálogo</label>
         <textarea name="texto_masivo" rows="8" required placeholder="Ej: La batería LTH L-47-650..." class="w-full p-3 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 text-sm"></textarea>
     </div>
-    <button type="submit" id="submitProsa" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md shadow">Procesar con IA (n8n)</button>
+    <button type="submit" id="submitProsa" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md shadow">Procesar Ingreso con IA (n8n)</button>
 </form>
 
 <form action="{% url 'panel_index' %}" method="POST" id="formEstructurado" class="hidden space-y-4 text-sm" onsubmit="deshabilitarBoton('submitDirectoEstrucutrado', 'Guardando...')">

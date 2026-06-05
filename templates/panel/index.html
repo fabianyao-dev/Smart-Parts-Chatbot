@@ -10,10 +10,10 @@
             Gestión de Productos
         </button>
         <button id="tabLeads" onclick="switchMainTab('leads')" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
-            Cola de Aprobación (Leads)
+            Leads en Cola de Aprobación
         </button>
         <button id="tabHistorial" onclick="switchMainTab('historial')" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
-            Directorio CRM (Historial)
+            Gestión de Leads
         </button>
     </nav>
 </div>
@@ -29,7 +29,7 @@
 
 <div id="seccionLeads" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 transition-all duration-300">
     <div class="lg:col-span-1 bg-white p-6 border border-gray-200 rounded-lg shadow-sm h-fit">
-        {% include 'panel/components/form_leads.html' %}
+        {% include 'panel/components/form_leads_shared.html' with titulo='Gestión de Leads' subtitulo='Edita y aprueba los datos de los leads en cola de aprobación.' empty_id='leadFormVacio' empty_texto='Selecciona un prospecto de la lista de la derecha para habilitar los controles de edición y visto bueno.' form_id='formLeadsActivo' submit_button_id='submitLead' lead_id_input_id='form_lead_id' nombre_input_id='form_lead_nombre' ciudad_input_id='form_lead_ciudad' estado_input_id='form_lead_estado' vehiculo_input_id='form_lead_vehiculo' anio_input_id='form_lead_anio' producto_input_id='form_lead_producto' direccion_input_id='form_lead_direccion' estatus_container_id='contenedorEstatusAprobacion' estatus_text_id='textoEstatusAprobacion' aprobado_input_id='form_lead_aprobado' update_status_function='actualizarUIEstatus' cancel_function='cancelarSeleccionLead' %}
     </div>
     <div class="lg:col-span-2 bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
         {% include 'panel/components/tabla_leads.html' %}
@@ -38,10 +38,7 @@
 
 <div id="seccionHistorial" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 transition-all duration-300">
     <div class="lg:col-span-1 bg-white p-6 border border-gray-200 rounded-lg shadow-sm h-fit">
-        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 text-center mb-4">
-            <p class="text-xs font-bold text-gray-600">Tip de Operación</p>
-            <p class="text-[11px] text-gray-400 mt-0.5">Al hacer clic en cualquier fila del Historial CRM, puedes cargar y corregir sus datos directamente en el formulario de la pestaña anterior.</p>
-        </div>
+        {% include 'panel/components/form_leads_shared.html' with titulo='Actualización de Leads' subtitulo='Edición directa para registros ya revisados en el CRM.' empty_id='leadFormHistorialVacio' empty_texto='Selecciona un cliente del historial para editarlo sin salir de esta pestaña.' form_id='formLeadsHistorialActivo' submit_button_id='submitLeadHistorial' lead_id_input_id='form_hist_lead_id' nombre_input_id='form_hist_lead_nombre' ciudad_input_id='form_hist_lead_ciudad' estado_input_id='form_hist_lead_estado' vehiculo_input_id='form_hist_lead_vehiculo' anio_input_id='form_hist_lead_anio' producto_input_id='form_hist_lead_producto' direccion_input_id='form_hist_lead_direccion' estatus_container_id='contenedorEstatusAprobacionHistorial' estatus_text_id='textoEstatusAprobacionHistorial' aprobado_input_id='form_hist_lead_aprobado' update_status_function='actualizarUIEstatusHistorial' cancel_function='cancelarSeleccionLeadHistorial' %}
     </div>
     <div class="lg:col-span-2 bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
         {% include 'panel/components/tabla_leads_historial.html' %}
@@ -49,6 +46,118 @@
 </div>
 
 <script>
+    function normalizeFilterValue(value) {
+        return (value || '').toString().trim().toLowerCase();
+    }
+
+    function containsFilterValue(target, needle) {
+        if (!needle) return true;
+        return normalizeFilterValue(target).includes(normalizeFilterValue(needle));
+    }
+
+    function toggleFilterPanel(tabla) {
+        const panel = document.getElementById(`filterPanel-${tabla}`);
+        if (panel) {
+            panel.classList.toggle('hidden');
+        }
+    }
+
+    function applyProductosFilter() {
+        const termino = normalizeFilterValue(document.getElementById('filterProductosTermino')?.value);
+        const ciudad = normalizeFilterValue(document.getElementById('filterProductosCiudad')?.value);
+        const estado = normalizeFilterValue(document.getElementById('filterProductosEstado')?.value);
+        const stock = normalizeFilterValue(document.getElementById('filterProductosStock')?.value);
+
+        document.querySelectorAll('.filter-row-productos').forEach((row) => {
+            const marca = row.dataset.marca || '';
+            const modelo = row.dataset.modelo || '';
+            const categoria = row.dataset.categoria || '';
+            const rowCiudad = row.dataset.ciudad || '';
+            const rowEstado = row.dataset.estado || '';
+            const rowStock = parseInt(row.dataset.stock || '0', 10);
+
+            const terminoOk = !termino || containsFilterValue(`${marca} ${modelo} ${categoria}`, termino);
+            const ciudadOk = containsFilterValue(rowCiudad, ciudad);
+            const estadoOk = containsFilterValue(rowEstado, estado);
+
+            let stockOk = true;
+            if (stock === 'critico') stockOk = rowStock <= 5;
+            if (stock === 'ok') stockOk = rowStock > 5;
+
+            row.style.display = terminoOk && ciudadOk && estadoOk && stockOk ? '' : 'none';
+        });
+    }
+
+    function clearProductosFilter() {
+        document.getElementById('filterProductosTermino').value = '';
+        document.getElementById('filterProductosCiudad').value = '';
+        document.getElementById('filterProductosEstado').value = '';
+        document.getElementById('filterProductosStock').value = '';
+        applyProductosFilter();
+    }
+
+    function applyLeadsFilter() {
+        const nombre = normalizeFilterValue(document.getElementById('filterLeadsNombre')?.value);
+        const producto = normalizeFilterValue(document.getElementById('filterLeadsProducto')?.value);
+        const ciudad = normalizeFilterValue(document.getElementById('filterLeadsCiudad')?.value);
+        const estado = normalizeFilterValue(document.getElementById('filterLeadsEstado')?.value);
+
+        document.querySelectorAll('.filter-row-leads').forEach((row) => {
+            const nombreOk = containsFilterValue(row.dataset.nombre, nombre);
+            const productoOk = containsFilterValue(row.dataset.producto, producto);
+            const ciudadOk = containsFilterValue(row.dataset.ciudad, ciudad);
+            const estadoOk = containsFilterValue(row.dataset.estado, estado);
+
+            row.style.display = nombreOk && productoOk && ciudadOk && estadoOk ? '' : 'none';
+        });
+    }
+
+    function clearLeadsFilter() {
+        document.getElementById('filterLeadsNombre').value = '';
+        document.getElementById('filterLeadsProducto').value = '';
+        document.getElementById('filterLeadsCiudad').value = '';
+        document.getElementById('filterLeadsEstado').value = '';
+        applyLeadsFilter();
+    }
+
+    function applyHistorialFilter() {
+        const nombre = normalizeFilterValue(document.getElementById('filterHistorialNombre')?.value);
+        const vehiculo = normalizeFilterValue(document.getElementById('filterHistorialVehiculo')?.value);
+        const ciudad = normalizeFilterValue(document.getElementById('filterHistorialCiudad')?.value);
+        const estado = normalizeFilterValue(document.getElementById('filterHistorialEstado')?.value);
+
+        document.querySelectorAll('.filter-row-historial').forEach((row) => {
+            const nombreOk = containsFilterValue(row.dataset.nombre, nombre);
+            const vehiculoOk = containsFilterValue(row.dataset.vehiculo, vehiculo);
+            const ciudadOk = containsFilterValue(row.dataset.ciudad, ciudad);
+            const estadoOk = containsFilterValue(row.dataset.estado, estado);
+
+            row.style.display = nombreOk && vehiculoOk && ciudadOk && estadoOk ? '' : 'none';
+        });
+    }
+
+    function clearHistorialFilter() {
+        document.getElementById('filterHistorialNombre').value = '';
+        document.getElementById('filterHistorialVehiculo').value = '';
+        document.getElementById('filterHistorialCiudad').value = '';
+        document.getElementById('filterHistorialEstado').value = '';
+        applyHistorialFilter();
+    }
+
+    function aplicarFiltroNotificacion(tipo) {
+        if (tipo === 'stock_critico') {
+            switchMainTab('productos');
+            document.getElementById('filterProductosStock').value = 'critico';
+            applyProductosFilter();
+            return;
+        }
+
+        if (tipo === 'leads_pendientes') {
+            switchMainTab('leads');
+            clearLeadsFilter();
+        }
+    }
+
     // --- 1. LÓGICA DE NAVEGACIÓN (3 TABS) ---
     function switchMainTab(seccion) {
         const tabs = ['productos', 'leads', 'historial'];
@@ -126,7 +235,7 @@
 
     function cancelarSeleccionProducto() {
         document.querySelectorAll('.dynamic-prod-row').forEach(row => row.classList.remove('bg-blue-50', 'border-blue-200'));
-        document.getElementById('panelHeaderProductos').innerText = "Ingesta de Inventario";
+        document.getElementById('panelHeaderProductos').innerText = "Ingreso de Inventario";
         document.getElementById('btnDescartarProducto').classList.add('hidden');
         document.getElementById('submitDirectoEstrucutrado').innerText = "Guardar Directo en DB";
         document.getElementById('submitDirectoEstrucutrado').className = "w-full bg-blue-900 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-md shadow mt-2 transition";
@@ -202,6 +311,44 @@
         document.getElementById('formLeadsActivo').classList.add('hidden');
         document.getElementById('leadFormVacio').classList.remove('hidden');
         document.getElementById('formLeadsActivo').reset();
+    }
+
+    function cargarLeadEnFormularioHistorial(lead) {
+        document.querySelectorAll('.dynamic-lead-row').forEach(row => row.classList.remove('bg-purple-50', 'border-purple-200'));
+        const f2 = document.getElementById(`lead-hist-row-${lead.id}`);
+        if (f2) f2.classList.add('bg-purple-50', 'border-purple-200');
+
+        switchMainTab('historial');
+        document.getElementById('leadFormHistorialVacio').classList.add('hidden');
+        document.getElementById('formLeadsHistorialActivo').classList.remove('hidden');
+
+        document.getElementById('form_hist_lead_id').value = lead.id;
+        document.getElementById('form_hist_lead_nombre').value = lead.nombre;
+        document.getElementById('form_hist_lead_ciudad').value = lead.ciudad;
+        document.getElementById('form_hist_lead_estado').value = lead.estado;
+        document.getElementById('form_hist_lead_vehiculo').value = lead.vehiculo;
+        document.getElementById('form_hist_lead_anio').value = lead.anio;
+        document.getElementById('form_hist_lead_producto').value = lead.producto;
+        document.getElementById('form_hist_lead_direccion').value = lead.direccion;
+
+        const checkbox = document.getElementById('form_hist_lead_aprobado');
+        checkbox.checked = lead.aprobado;
+        actualizarUIEstatusHistorial(lead.aprobado);
+    }
+
+    function actualizarUIEstatusHistorial(isAprobado) {
+        const c = document.getElementById('contenedorEstatusAprobacionHistorial');
+        const t = document.getElementById('textoEstatusAprobacionHistorial');
+        c.className = isAprobado ? "p-3 rounded-md border border-green-200 bg-green-50 flex items-center justify-between transition" : "p-3 rounded-md border border-yellow-200 bg-yellow-50 flex items-center justify-between transition";
+        t.className = isAprobado ? "text-xs font-black tracking-tight text-green-700" : "text-xs font-black tracking-tight text-yellow-700";
+        t.innerText = isAprobado ? "PROSPECTO APROBADO" : "REVISIÓN PENDIENTE";
+    }
+
+    function cancelarSeleccionLeadHistorial() {
+        document.querySelectorAll('.dynamic-lead-row').forEach(row => row.classList.remove('bg-purple-50', 'border-purple-200'));
+        document.getElementById('formLeadsHistorialActivo').classList.add('hidden');
+        document.getElementById('leadFormHistorialVacio').classList.remove('hidden');
+        document.getElementById('formLeadsHistorialActivo').reset();
     }
 </script>
 {% endblock %}

@@ -44,7 +44,7 @@
                 {% endif %}
 
                 {% if alertas_leads %}
-                <div class="flex items-start gap-3 p-4 hover:bg-blue-50 cursor-pointer border-b border-gray-50" onclick="if(typeof switchMainTab === 'function') switchMainTab('leads'); toggleNotificaciones();">
+                <div class="flex items-start gap-3 p-4 hover:bg-blue-50 cursor-pointer border-b border-gray-50" onclick="if(typeof aplicarFiltroNotificacion === 'function') { aplicarFiltroNotificacion('leads_pendientes'); } else if(typeof switchMainTab === 'function') { switchMainTab('leads'); } toggleNotificaciones();">
                   <span class="w-2 h-2 rounded-full bg-yellow-500 mt-1.5"></span>
                   <div>
                     <p class="text-xs font-bold text-gray-900">Leads en Espera ({{ leads_pendientes|length }})</p>
@@ -54,7 +54,7 @@
                 {% endif %}
 
                 {% if alertas_stock %}
-                <div class="flex items-start gap-3 p-4 hover:bg-blue-50 cursor-pointer border-b border-gray-50" onclick="if(typeof switchMainTab === 'function') switchMainTab('productos'); toggleNotificaciones();">
+                <div class="flex items-start gap-3 p-4 hover:bg-blue-50 cursor-pointer border-b border-gray-50" onclick="if(typeof aplicarFiltroNotificacion === 'function') { aplicarFiltroNotificacion('stock_critico'); } else if(typeof switchMainTab === 'function') { switchMainTab('productos'); } toggleNotificaciones();">
                   <span class="w-2 h-2 rounded-full bg-red-500 mt-1.5"></span>
                   <div>
                     <p class="text-xs font-bold text-gray-900">Stock Crítico Detectado</p>
