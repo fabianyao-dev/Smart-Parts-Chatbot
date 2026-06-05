@@ -12,6 +12,7 @@
     {% csrf_token %}
     <input type="hidden" name="action_type" value="actualizar_lead">
     <input type="hidden" name="lead_id" id="{{ lead_id_input_id }}">
+    <input type="hidden" name="forzar_estado_venta" id="{{ forzar_estado_input_id }}" value="0">
 
     <div>
         <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Nombre Completo</label>
@@ -34,6 +35,11 @@
     </div>
 
     <div>
+        <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Cantidad Solicitada</label>
+        <input type="number" name="cantidad_solicitada" id="{{ cantidad_input_id }}" min="1" step="1" class="w-full p-2.5 border border-gray-300 rounded-md shadow-sm" value="1">
+    </div>
+
+    <div>
         <label class="block text-xs font-bold uppercase text-gray-500 mb-1">Dirección de Envío / Taller</label>
         <textarea name="direccion_envio" id="{{ direccion_input_id }}" rows="3" class="w-full p-2.5 border border-gray-300 rounded-md shadow-sm" placeholder="Dirección completa para cotizar flete..."></textarea>
     </div>
@@ -46,8 +52,8 @@
         <div class="flex items-center">
             
             <input type="hidden" name="aprobado_por_asesor" value="off">
-            <input type="checkbox" name="aprobado_por_asesor" id="{{ aprobado_input_id }}" onchange="{{ update_status_function }}(this.checked)" class="w-4 h-4 text-purple-900 border-gray-300 rounded focus:ring-purple-500">
-            <label for="{{ aprobado_input_id }}" class="ml-2 text-xs font-bold text-gray-700 select-none cursor-pointer">Visto Bueno</label>
+            <input type="checkbox" name="aprobado_por_asesor" id="{{ aprobado_input_id }}" onchange="marcarCambioEstado('{{ forzar_estado_input_id }}'); {{ update_status_function }}(this.checked)" class="w-4 h-4 text-purple-900 border-gray-300 rounded focus:ring-purple-500">
+            <label for="{{ aprobado_input_id }}" class="ml-2 text-xs font-bold text-gray-700 select-none cursor-pointer">Venta aprobada</label>
         </div>
     </div>
 

@@ -47,8 +47,8 @@
                 <div class="flex items-start gap-3 p-4 hover:bg-blue-50 cursor-pointer border-b border-gray-50" onclick="if(typeof aplicarFiltroNotificacion === 'function') { aplicarFiltroNotificacion('leads_pendientes'); } else if(typeof switchMainTab === 'function') { switchMainTab('leads'); } toggleNotificaciones();">
                   <span class="w-2 h-2 rounded-full bg-yellow-500 mt-1.5"></span>
                   <div>
-                    <p class="text-xs font-bold text-gray-900">Leads en Espera ({{ leads_pendientes|length }})</p>
-                    <p class="text-xs text-gray-600 mt-0.5">Tienes prospectos pendientes de aprobación manual.</p>
+                    <p class="text-xs font-bold text-gray-900">Ventas en Cola ({{ leads_pendientes|length }})</p>
+                    <p class="text-xs text-gray-600 mt-0.5">Tienes leads que desean comprar pendientes de aprobacion de venta.</p>
                   </div>
                 </div>
                 {% endif %}

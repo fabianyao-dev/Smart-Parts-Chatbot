@@ -2,6 +2,7 @@ from rest_framework import viewsets, filters, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db.models import Q
+from django.db import transaction
 import os
 import requests
 from .models import Producto, Lead, Reserva
@@ -11,6 +12,7 @@ from django.views.decorators.cache import never_cache
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
 from django.conf import settings
+from django.utils import timezone
 from .webhooks import enviar_mensaje_estado_lead_por_evolution
 
 
@@ -45,6 +47,35 @@ class LeadViewSet(viewsets.ModelViewSet):
         return Lead.objects.filter(is_active=True)
 
 
+def calcular_lead_completo(lead):
+    """
+    Lead completo en negocio de venta:
+    - Si la venta ya fue aprobada: completo.
+    - Si desea comprar, hay producto y existe disponibilidad para su cantidad: completo.
+    """
+    if lead.aprobado_por_asesor is True:
+        return True
+
+    if lead.desea_comprar is not True:
+        return False
+
+    if not lead.producto_interes_id:
+        return False
+
+    cantidad = max(lead.cantidad_solicitada or 1, 1)
+    tiene_reserva_activa = Reserva.objects.filter(
+        lead=lead,
+        activa=True,
+        expira_en__gt=timezone.now(),
+        cantidad__gte=cantidad
+    ).exists()
+
+    if tiene_reserva_activa:
+        return True
+
+    return lead.producto_interes.stock_disponible >= cantidad
+
+
 # ==========================================
 # ENDPOINT: CONFIRMAR COMPRA
 # ==========================================
@@ -69,10 +100,21 @@ def confirmar_compra(request):
     """
     lead_id = request.data.get('lead_id')
     producto_id = request.data.get('producto_id')
+    cantidad_raw = request.data.get('cantidad', 1)
 
     if not lead_id or not producto_id:
         return Response(
             {"error": "Se requieren lead_id y producto_id"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        cantidad = int(cantidad_raw)
+        if cantidad <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return Response(
+            {"error": "cantidad debe ser un entero mayor a 0"},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -83,16 +125,20 @@ def confirmar_compra(request):
         reserva = Reserva.crear_reserva(
             producto=producto,
             lead=lead,
-            cantidad=1,
+            cantidad=cantidad,
             minutos=15
         )
 
         lead.desea_comprar = True
-        lead.save(update_fields=['desea_comprar', 'updated_at'])
+        lead.producto_interes = producto
+        lead.cantidad_solicitada = cantidad
+        lead.lead_completo = calcular_lead_completo(lead)
+        lead.save(update_fields=['desea_comprar', 'producto_interes', 'cantidad_solicitada', 'lead_completo', 'updated_at'])
 
         return Response({
             "mensaje": "Reserva creada. Un asesor validará la compatibilidad.",
             "reserva_id": reserva.id,
+            "cantidad": cantidad,
             "expira_en": reserva.expira_en,
             "stock_disponible": producto.stock_disponible,
             "lead_id": lead.id,
@@ -183,47 +229,80 @@ def procesar_ingesta_directa(request):
 
 def procesar_actualizacion_lead_desde_panel(request):
     try:
-        lead = Lead.objects.get(id=request.POST.get('lead_id'))
-        estado_aprobacion_anterior = lead.aprobado_por_asesor
-        aprobacion_recibida = request.POST.get('aprobado_por_asesor', 'off') == 'on'
+        with transaction.atomic():
+            lead = Lead.objects.select_for_update().get(id=request.POST.get('lead_id'))
+            estado_aprobacion_anterior = lead.aprobado_por_asesor
+            forzar_estado_venta = request.POST.get('forzar_estado_venta', '0') == '1'
+            aprobacion_recibida = request.POST.get('aprobado_por_asesor', 'off') == 'on'
 
-        # Solo actualiza campos enviados para evitar borrar datos en formularios parciales
-        if 'nombre' in request.POST:
-            lead.nombre = request.POST.get('nombre')
-        if 'ciudad' in request.POST:
-            lead.ciudad = request.POST.get('ciudad')
-        if 'estado' in request.POST:
-            lead.estado = request.POST.get('estado')
-        if 'vehiculo' in request.POST:
-            lead.vehiculo = request.POST.get('vehiculo')
-        if 'anio_vehiculo' in request.POST:
-            lead.anio_vehiculo = request.POST.get('anio_vehiculo')
-        if 'direccion_envio' in request.POST:
-            lead.direccion_envio = request.POST.get('direccion_envio')
+            # Solo actualiza campos enviados para evitar borrar datos en formularios parciales
+            if 'nombre' in request.POST:
+                lead.nombre = request.POST.get('nombre')
+            if 'ciudad' in request.POST:
+                lead.ciudad = request.POST.get('ciudad')
+            if 'estado' in request.POST:
+                lead.estado = request.POST.get('estado')
+            if 'vehiculo' in request.POST:
+                lead.vehiculo = request.POST.get('vehiculo')
+            if 'anio_vehiculo' in request.POST:
+                lead.anio_vehiculo = request.POST.get('anio_vehiculo')
+            if 'direccion_envio' in request.POST:
+                lead.direccion_envio = request.POST.get('direccion_envio')
+            if 'cantidad_solicitada' in request.POST:
+                cantidad_solicitada_raw = request.POST.get('cantidad_solicitada')
+                try:
+                    cantidad_solicitada = int(cantidad_solicitada_raw)
+                    if cantidad_solicitada <= 0:
+                        raise ValueError
+                    lead.cantidad_solicitada = cantidad_solicitada
+                except (TypeError, ValueError):
+                    raise ValueError("cantidad_solicitada debe ser un entero mayor a 0")
 
-        # aprobado_por_asesor: True = aprobado, False = rechazado, None = pendiente
-        # Desde el formulario: checkbox "on" = True, ausente/off = False
-        lead.aprobado_por_asesor = True if aprobacion_recibida else False
+            # Solo cambiar estatus cuando se indique explícitamente.
+            # Esto evita que una edición de campos (ej. cantidad) rechace el lead por accidente.
+            if forzar_estado_venta:
+                lead.aprobado_por_asesor = True if aprobacion_recibida else False
 
-        lead.lead_completo = bool(
-            lead.nombre and
-            lead.ciudad and
-            lead.direccion_envio and
-            lead.aprobado_por_asesor is True
-        )
-        lead.save()
+            # Al aprobar venta, confirmar reserva activa y descontar stock real.
+            # Si no existe reserva, se descuenta 1 unidad del producto asociado al lead.
+            if estado_aprobacion_anterior != lead.aprobado_por_asesor:
+                if lead.aprobado_por_asesor is True:
+                    reserva_activa = Reserva.objects.filter(
+                        lead=lead,
+                        activa=True,
+                        expira_en__gt=timezone.now()
+                    ).order_by('-created_at').first()
 
-        # Notificar al cliente solo si cambió el estado de aprobación
+                    if reserva_activa:
+                        reserva_activa.confirmar()
+                    elif lead.producto_interes:
+                        producto = Producto.objects.select_for_update().get(id=lead.producto_interes_id)
+                        cantidad_a_descontar = max(lead.cantidad_solicitada or 1, 1)
+                        if producto.stock < cantidad_a_descontar:
+                            raise ValueError(
+                                f"No hay stock suficiente para aprobar la venta de {producto.marca} {producto.modelo}. "
+                                f"Solicitado: {cantidad_a_descontar}, disponible: {producto.stock}."
+                            )
+                        producto.stock -= cantidad_a_descontar
+                        producto.save(update_fields=['stock', 'updated_at'])
+
+                if lead.aprobado_por_asesor is False:
+                    Reserva.objects.filter(lead=lead, activa=True).update(activa=False)
+
+            lead.lead_completo = calcular_lead_completo(lead)
+            lead.save()
+
+        # Notificar al cliente solo si cambió el estado de aprobacion de venta
         if estado_aprobacion_anterior != lead.aprobado_por_asesor:
             try:
                 enviar_mensaje_estado_lead_por_evolution(lead, lead.aprobado_por_asesor)
                 lead.notificado = True
                 lead.save(update_fields=['notificado'])
-                estado_texto = 'aprobado' if lead.aprobado_por_asesor else 'rechazado'
+                estado_texto = 'aprobada' if lead.aprobado_por_asesor else 'rechazada'
                 messages.success(
                     request,
                     f"¡Prospecto '{lead.nombre}' actualizado y mensaje de "
-                    f"{estado_texto} enviado por WhatsApp!"
+                    f"venta {estado_texto} enviado por WhatsApp!"
                 )
                 return redirect('panel_index')
             except Exception as error_envio:
@@ -248,27 +327,37 @@ def procesar_reabrir_lead(request):
     Semántica: aprobado_por_asesor = None → pendiente (sin revisar).
     """
     try:
-        lead = Lead.objects.get(id=request.POST.get('lead_id'))
-        campos = []
+        with transaction.atomic():
+            lead = Lead.objects.select_for_update().get(id=request.POST.get('lead_id'))
+            estado_anterior = lead.aprobado_por_asesor
+            campos = []
 
-        # Resetear a None = pendiente sin revisar (única semántica válida para cola)
-        if lead.aprobado_por_asesor is not None:
-            lead.aprobado_por_asesor = None
-            campos.append('aprobado_por_asesor')
+            # Si la venta estaba aprobada, reponer stock al reabrir.
+            if estado_anterior is True and lead.producto_interes_id:
+                producto = Producto.objects.select_for_update().get(id=lead.producto_interes_id)
+                cantidad_a_reponer = max(lead.cantidad_solicitada or 1, 1)
+                producto.stock += cantidad_a_reponer
+                producto.save(update_fields=['stock', 'updated_at'])
 
-        if lead.notificado:
-            lead.notificado = False
-            campos.append('notificado')
+            # Resetear a None = pendiente sin revisar (única semántica válida para cola)
+            if lead.aprobado_por_asesor is not None:
+                lead.aprobado_por_asesor = None
+                campos.append('aprobado_por_asesor')
 
-        if lead.lead_completo:
-            lead.lead_completo = False
-            campos.append('lead_completo')
+            if lead.notificado:
+                lead.notificado = False
+                campos.append('notificado')
 
-        if campos:
-            # No incluir updated_at manualmente si el modelo usa auto_now=True
-            lead.save(update_fields=campos)
+            nuevo_estado_completo = calcular_lead_completo(lead)
+            if lead.lead_completo != nuevo_estado_completo:
+                lead.lead_completo = nuevo_estado_completo
+                campos.append('lead_completo')
 
-        messages.success(request, f"Lead '{lead.nombre or lead.telefono or lead.id}' reabierto y enviado a la cola de pendientes.")
+            if campos:
+                # No incluir updated_at manualmente si el modelo usa auto_now=True
+                lead.save(update_fields=campos)
+
+        messages.success(request, f"Lead '{lead.nombre or lead.telefono or lead.id}' reabierto y enviado a la cola de venta.")
     except Exception as e:
         messages.error(request, f"Error al reabrir Lead: {str(e)}")
     return redirect('panel_index')
@@ -360,24 +449,32 @@ def panel_view(request):
             return redirect('panel_index')
 
     # GET: lectura filtrada
-    # Semántica canónica:
-    #   aprobado_por_asesor = None  → pendiente (cola)
-    #   aprobado_por_asesor = True  → aprobado (historial)
-    #   aprobado_por_asesor = False → rechazado (historial)
+    # Semántica operativa:
+    #   Cola de pendientes: desea_comprar=True y aprobado_por_asesor=None
+    #   Gestion: todos los leads activos (incluye cola)
     productos = Producto.objects.filter(is_active=True).order_by('-created_at')
 
-    leads_pendientes = Lead.objects.filter(
-        is_active=True,
-        aprobado_por_asesor__isnull=True   # None = sin revisar = cola
-    ).order_by('created_at')
+    leads_historial = list(
+        Lead.objects.filter(is_active=True)
+        .select_related('producto_interes')
+        .order_by('-updated_at')
+    )
+    for lead in leads_historial:
+        nuevo_completo = calcular_lead_completo(lead)
+        if lead.lead_completo != nuevo_completo:
+            lead.lead_completo = nuevo_completo
+            lead.save(update_fields=['lead_completo'])
+        else:
+            lead.lead_completo = nuevo_completo
 
-    leads_historial = Lead.objects.filter(
-        is_active=True,
-        aprobado_por_asesor__isnull=False  # True o False = revisados = historial
-    ).order_by('-updated_at')
+    leads_pendientes = [
+        lead for lead in leads_historial
+        if lead.desea_comprar is True and lead.aprobado_por_asesor is None
+    ]
+    leads_pendientes.sort(key=lambda lead: lead.created_at)
 
     productos_criticos = productos.filter(stock__lte=5)
-    alertas_leads = leads_pendientes.count() > 0
+    alertas_leads = len(leads_pendientes) > 0
     alertas_stock = productos_criticos.count() > 0
 
     total_alertas = 0

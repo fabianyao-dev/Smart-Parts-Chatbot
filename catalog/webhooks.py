@@ -4,7 +4,7 @@ import requests
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
-from .models import Producto, Lead
+from .models import Producto, Lead, Reserva
 
 @csrf_exempt
 def procesar_webhook_catalogo_n8n(request):
@@ -64,9 +64,40 @@ def normalizar_telefono_para_evolution(telefono, country_code='52'):
 
 def construir_mensaje_estado_lead(lead, aprobado):
     nombre = lead.nombre or 'cliente'
-    estado_texto = 'aprobado' if aprobado else 'rechazado'
+    if aprobado:
+        url_simulacion = getattr(
+            settings,
+            'STRIPE_SIMULACION_URL',
+            os.getenv('STRIPE_SIMULACION_URL', 'https://buy.stripe.com/test_simulacion_smartparts')
+        )
+
+        cantidad = max(lead.cantidad_solicitada or 1, 1)
+        ultima_reserva = Reserva.objects.filter(lead=lead).order_by('-created_at').first()
+        if ultima_reserva and ultima_reserva.cantidad:
+            cantidad = ultima_reserva.cantidad
+
+        producto = lead.producto_interes
+        if producto:
+            descripcion_producto = f'{producto.marca} {producto.modelo}'
+            total = producto.precio * cantidad
+            total_formateado = f'{total:.2f}'
+            monto_linea = f'Monto a pagar: ${total_formateado} {producto.moneda}'
+            producto_linea = f'Producto: {descripcion_producto}'
+        else:
+            monto_linea = 'Monto a pagar: por confirmar con asesor.'
+            producto_linea = 'Producto: por confirmar con asesor.'
+
+        return (
+            f'Hola {nombre}, tu solicitud de venta fue aprobada. '
+            f'Cantidad: {cantidad}. '
+            f'{producto_linea}. '
+            f'{monto_linea}. '
+            f'Puedes revisar esta simulacion de pago: {url_simulacion}. '
+            f'Si necesitas apoyo adicional, responde a este mensaje.'
+        )
+
     return (
-        f'Hola {nombre}, te informamos que tu lead fue {estado_texto}. '
+        f'Hola {nombre}, te informamos que tu solicitud de venta fue rechazada. '
         f'Si necesitas apoyo adicional, responde a este mensaje.'
     )
 

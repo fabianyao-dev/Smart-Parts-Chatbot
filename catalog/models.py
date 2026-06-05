@@ -62,6 +62,7 @@ class Lead(models.Model):
 
     # Estado del lead
     desea_comprar = models.BooleanField(null=True, default=None)
+    cantidad_solicitada = models.PositiveIntegerField(default=1)
     lead_completo = models.BooleanField(default=False)
 
     # Gestión del asesor
