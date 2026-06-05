@@ -15,11 +15,9 @@ def procesar_webhook_catalogo_n8n(request):
         try:
             data = json.loads(request.body)
             
-            # Asumimos que n8n nos manda una lista de productos extraídos
             productos_extraidos = data.get('productos', [])
             
             for item in productos_extraidos:
-                # Reutilizamos tu excelente lógica de Upsert
                 Producto.objects.update_or_create(
                     marca=item.get('marca'),
                     modelo=item.get('modelo'),
@@ -39,6 +37,7 @@ def procesar_webhook_catalogo_n8n(request):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
     
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
 
 def obtener_configuracion_evolution():
     return {
@@ -72,6 +71,84 @@ def construir_mensaje_estado_lead(lead, aprobado):
     )
 
 
+def extraer_datos_mensaje_evolution(payload):
+    data = payload.get('data', {}) if isinstance(payload, dict) else {}
+    mensaje = data.get('message', {}) if isinstance(data, dict) else {}
+    key = data.get('key', {}) if isinstance(data, dict) else {}
+
+    telefono = (
+        key.get('remoteJid')
+        or data.get('remoteJid')
+        or data.get('from')
+        or mensaje.get('from')
+        or ''
+    )
+    nombre = (
+        data.get('pushName')
+        or data.get('senderName')
+        or data.get('participantName')
+        or ''
+    )
+    texto = (
+        mensaje.get('conversation')
+        or mensaje.get('extendedTextMessage', {}).get('text')
+        or data.get('text')
+        or ''
+    )
+
+    telefono = str(telefono).split('@')[0].strip()
+    return telefono, nombre.strip(), texto.strip()
+
+
+def crear_o_actualizar_lead_pendiente_desde_evolution(payload):
+    """
+    Crea un lead nuevo con estado pendiente (aprobado_por_asesor=None).
+
+    Si el lead ya existe y fue revisado (True o False), NO se resetea
+    automáticamente. El reingreso manual se hace desde el panel con "Reabrir".
+    Solo se actualizan campos de contacto (nombre) si cambiaron.
+    """
+    telefono, nombre, texto = extraer_datos_mensaje_evolution(payload)
+    if not telefono:
+        raise ValueError('No se pudo extraer un teléfono válido desde Evolution')
+
+    nombre_base = nombre or telefono
+
+    lead, created = Lead.objects.get_or_create(
+        telefono=telefono,
+        defaults={
+            'nombre': nombre_base,
+            'desea_comprar': None,
+            'lead_completo': False,
+            'aprobado_por_asesor': None,  # None = pendiente (sin revisar)
+            'notificado': False,
+            'is_active': True,
+        }
+    )
+
+    campos_actualizados = []
+
+    # Actualizar nombre si cambió
+    if lead.nombre != nombre_base and nombre:
+        lead.nombre = nombre_base
+        campos_actualizados.append('nombre')
+
+    # Reactivar si estaba inactivo (eliminado del panel)
+    if not lead.is_active:
+        lead.is_active = True
+        campos_actualizados.append('is_active')
+
+    # IMPORTANTE: NO resetear aprobado_por_asesor si el lead ya fue revisado.
+    # Un mensaje nuevo de un cliente ya aprobado o rechazado no debe sacarlo
+    # del historial automáticamente. El asesor decide si reabrir desde el panel.
+    # Solo se resetea si el lead es nuevo (created=True, ya manejado por defaults).
+
+    if campos_actualizados:
+        lead.save(update_fields=campos_actualizados)
+
+    return lead, created
+
+
 def enviar_mensaje_estado_lead_por_evolution(lead, aprobado):
     configuracion = obtener_configuracion_evolution()
     send_message_url = configuracion['send_message_url']
@@ -102,26 +179,24 @@ def enviar_mensaje_estado_lead_por_evolution(lead, aprobado):
 @csrf_exempt
 def procesar_webhook_mensajes_evolution(request):
     """
-    Envía mensajes de estatus de leads de WhatsApp desde Evolution API.
+    Recibe eventos de Evolution API y registra leads nuevos como pendientes.
+    Leads ya revisados NO se resetean automáticamente.
     """
     if request.method == 'POST':
         try:
             payload = json.loads(request.body)
             
-            # Evolution API envía diferentes tipos de eventos. Nos interesa "messages.upsert"
             event_type = payload.get('event')
             
             if event_type == 'messages.upsert':
-                mensaje_data = payload.get('data', {})
-                
-                # Aquí extraes el número y el texto del mensaje
-                # (La estructura exacta dependerá de la versión de Evolution API)
-                
-                # TODO: 1. Guardar el Lead si es nuevo.
-                # TODO: 2. Reenviar el mensaje a tu Flujo de Conversación en n8n.
-                
-                # Por ahora solo respondemos 200 OK para que Evolution no reintente
-                return JsonResponse({'status': 'success', 'message': 'Mensaje recibido'}, status=200)
+                lead, created = crear_o_actualizar_lead_pendiente_desde_evolution(payload)
+                return JsonResponse({
+                    'status': 'success',
+                    'message': 'Lead registrado' if created else 'Lead existente, sin cambios de estado',
+                    'lead_id': lead.id,
+                    'created': created,
+                    'aprobado_por_asesor': lead.aprobado_por_asesor,
+                }, status=200)
                 
             return JsonResponse({'status': 'ignored', 'message': 'Evento no procesado'}, status=200)
             

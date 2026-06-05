@@ -44,6 +44,8 @@
             <span id="{{ estatus_text_id }}" class="text-xs font-black tracking-tight"></span>
         </div>
         <div class="flex items-center">
+            
+            <input type="hidden" name="aprobado_por_asesor" value="off">
             <input type="checkbox" name="aprobado_por_asesor" id="{{ aprobado_input_id }}" onchange="{{ update_status_function }}(this.checked)" class="w-4 h-4 text-purple-900 border-gray-300 rounded focus:ring-purple-500">
             <label for="{{ aprobado_input_id }}" class="ml-2 text-xs font-bold text-gray-700 select-none cursor-pointer">Visto Bueno</label>
         </div>

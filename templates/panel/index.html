@@ -10,10 +10,10 @@
             Gestión de Productos
         </button>
         <button id="tabLeads" onclick="switchMainTab('leads')" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
-            Leads en Cola de Aprobación
+            Leads en Cola
         </button>
         <button id="tabHistorial" onclick="switchMainTab('historial')" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition">
-            Gestión de Leads
+            Historial de Leads
         </button>
     </nav>
 </div>
@@ -29,7 +29,7 @@
 
 <div id="seccionLeads" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 transition-all duration-300">
     <div class="lg:col-span-1 bg-white p-6 border border-gray-200 rounded-lg shadow-sm h-fit">
-        {% include 'panel/components/form_leads_shared.html' with titulo='Gestión de Leads' subtitulo='Edita y aprueba los datos de los leads en cola de aprobación.' empty_id='leadFormVacio' empty_texto='Selecciona un prospecto de la lista de la derecha para habilitar los controles de edición y visto bueno.' form_id='formLeadsActivo' submit_button_id='submitLead' lead_id_input_id='form_lead_id' nombre_input_id='form_lead_nombre' ciudad_input_id='form_lead_ciudad' estado_input_id='form_lead_estado' vehiculo_input_id='form_lead_vehiculo' anio_input_id='form_lead_anio' producto_input_id='form_lead_producto' direccion_input_id='form_lead_direccion' estatus_container_id='contenedorEstatusAprobacion' estatus_text_id='textoEstatusAprobacion' aprobado_input_id='form_lead_aprobado' update_status_function='actualizarUIEstatus' cancel_function='cancelarSeleccionLead' %}
+        {% include 'panel/components/form_leads_shared.html' with titulo='Gestión de Lead' subtitulo='Edita y aprueba o rechaza los datos del lead seleccionado.' empty_id='leadFormVacio' empty_texto='Selecciona un prospecto de la lista para habilitar los controles de edición.' form_id='formLeadsActivo' submit_button_id='submitLead' lead_id_input_id='form_lead_id' nombre_input_id='form_lead_nombre' ciudad_input_id='form_lead_ciudad' estado_input_id='form_lead_estado' vehiculo_input_id='form_lead_vehiculo' anio_input_id='form_lead_anio' producto_input_id='form_lead_producto' direccion_input_id='form_lead_direccion' estatus_container_id='contenedorEstatusAprobacion' estatus_text_id='textoEstatusAprobacion' aprobado_input_id='form_lead_aprobado' update_status_function='actualizarUIEstatus' cancel_function='cancelarSeleccionLead' %}
     </div>
     <div class="lg:col-span-2 bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
         {% include 'panel/components/tabla_leads.html' %}
@@ -38,7 +38,7 @@
 
 <div id="seccionHistorial" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6 transition-all duration-300">
     <div class="lg:col-span-1 bg-white p-6 border border-gray-200 rounded-lg shadow-sm h-fit">
-        {% include 'panel/components/form_leads_shared.html' with titulo='Actualización de Leads' subtitulo='Edición directa para registros ya revisados en el CRM.' empty_id='leadFormHistorialVacio' empty_texto='Selecciona un cliente del historial para editarlo sin salir de esta pestaña.' form_id='formLeadsHistorialActivo' submit_button_id='submitLeadHistorial' lead_id_input_id='form_hist_lead_id' nombre_input_id='form_hist_lead_nombre' ciudad_input_id='form_hist_lead_ciudad' estado_input_id='form_hist_lead_estado' vehiculo_input_id='form_hist_lead_vehiculo' anio_input_id='form_hist_lead_anio' producto_input_id='form_hist_lead_producto' direccion_input_id='form_hist_lead_direccion' estatus_container_id='contenedorEstatusAprobacionHistorial' estatus_text_id='textoEstatusAprobacionHistorial' aprobado_input_id='form_hist_lead_aprobado' update_status_function='actualizarUIEstatusHistorial' cancel_function='cancelarSeleccionLeadHistorial' %}
+        {% include 'panel/components/form_leads_shared.html' with titulo='Edición de Lead Revisado' subtitulo='Edición directa para registros ya revisados. Usa Reabrir para devolverlos a la cola.' empty_id='leadFormHistorialVacio' empty_texto='Selecciona un cliente del historial para editarlo.' form_id='formLeadsHistorialActivo' submit_button_id='submitLeadHistorial' lead_id_input_id='form_hist_lead_id' nombre_input_id='form_hist_lead_nombre' ciudad_input_id='form_hist_lead_ciudad' estado_input_id='form_hist_lead_estado' vehiculo_input_id='form_hist_lead_vehiculo' anio_input_id='form_hist_lead_anio' producto_input_id='form_hist_lead_producto' direccion_input_id='form_hist_lead_direccion' estatus_container_id='contenedorEstatusAprobacionHistorial' estatus_text_id='textoEstatusAprobacionHistorial' aprobado_input_id='form_hist_lead_aprobado' update_status_function='actualizarUIEstatusHistorial' cancel_function='cancelarSeleccionLeadHistorial' %}
     </div>
     <div class="lg:col-span-2 bg-white p-6 border border-gray-200 rounded-lg shadow-sm">
         {% include 'panel/components/tabla_leads_historial.html' %}
@@ -46,6 +46,10 @@
 </div>
 
 <script>
+    // ==========================================
+    // UTILIDADES DE FILTRO
+    // ==========================================
+
     function normalizeFilterValue(value) {
         return (value || '').toString().trim().toLowerCase();
     }
@@ -57,9 +61,7 @@
 
     function toggleFilterPanel(tabla) {
         const panel = document.getElementById(`filterPanel-${tabla}`);
-        if (panel) {
-            panel.classList.toggle('hidden');
-        }
+        if (panel) panel.classList.toggle('hidden');
     }
 
     function applyProductosFilter() {
@@ -151,14 +153,16 @@
             applyProductosFilter();
             return;
         }
-
         if (tipo === 'leads_pendientes') {
             switchMainTab('leads');
             clearLeadsFilter();
         }
     }
 
-    // --- 1. LÓGICA DE NAVEGACIÓN (3 TABS) ---
+    // ==========================================
+    // NAVEGACIÓN (3 TABS)
+    // ==========================================
+
     function switchMainTab(seccion) {
         const tabs = ['productos', 'leads', 'historial'];
         const activeCls = "border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition";
@@ -167,7 +171,7 @@
         tabs.forEach(tab => {
             const btn = document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1));
             const sec = document.getElementById('seccion' + tab.charAt(0).toUpperCase() + tab.slice(1));
-            
+
             if (tab === seccion) {
                 btn.className = activeCls;
                 sec.classList.remove('hidden');
@@ -178,13 +182,16 @@
         });
     }
 
-    // --- 2. LÓGICA DE PRODUCTOS ---
+    // ==========================================
+    // LÓGICA DE PRODUCTOS
+    // ==========================================
+
     function switchMetodo(metodo) {
         const btnProsa = document.getElementById('btnProsa');
         const btnEstructurado = document.getElementById('btnEstructurado');
         const formProsa = document.getElementById('formProsa');
         const formEstructurado = document.getElementById('formEstructurado');
-        
+
         if (metodo === 'prosa') {
             btnProsa.className = "w-1/2 text-center py-2 rounded-md font-medium transition bg-blue-900 text-white shadow-sm";
             btnEstructurado.className = "w-1/2 text-center py-2 rounded-md font-medium transition text-gray-600 hover:text-gray-900";
@@ -203,16 +210,15 @@
         switchMainTab('productos');
         switchMetodo('estructurado');
 
-        // UI Modo Edición
         document.getElementById('panelHeaderProductos').innerText = `Editando: ${prod.marca} ${prod.modelo}`;
-        document.getElementById('btnDescartarProducto').classList.remove('hidden'); 
-        
+        document.getElementById('btnDescartarProducto').classList.remove('hidden');
+
         const submitBtn = document.getElementById('submitDirectoEstrucutrado');
         submitBtn.innerText = "Actualizar Producto";
-        submitBtn.className = "w-2/3 bg-purple-900 hover:bg-purple-800 text-white font-medium py-2 rounded-md shadow transition"; 
+        submitBtn.className = "w-2/3 bg-purple-900 hover:bg-purple-800 text-white font-medium py-2 rounded-md shadow transition";
 
         document.getElementById('formEstructuradoProductoId').value = prod.id;
-        document.getElementById('formEstructuradoActionType').value = "actualizar_producto"; 
+        document.getElementById('formEstructuradoActionType').value = "actualizar_producto";
         document.getElementById('form_marca').value = prod.marca;
         document.getElementById('form_modelo').value = prod.modelo;
         document.getElementById('form_categoria').value = prod.categoria;
@@ -221,16 +227,15 @@
         document.getElementById('form_ciudad').value = prod.ciudad;
         document.getElementById('form_estado').value = prod.estado;
 
-        // Carga dinámica
         const compatContainer = document.getElementById('compatibilidadContainerEstrucutrado');
         compatContainer.innerHTML = '';
         document.querySelectorAll(`#datos-ocultos-${prod.id} .compat-data span`).forEach(item => crearFilaCompatibilidad(item.getAttribute('data-val')));
-        crearFilaCompatibilidad('', true); // Fila de adición
+        crearFilaCompatibilidad('', true);
 
         const specsContainer = document.getElementById('especificacionesContainerEstrucutrado');
         specsContainer.innerHTML = '';
         document.querySelectorAll(`#datos-ocultos-${prod.id} .specs-data span`).forEach(item => crearFilaEspecificacion(item.getAttribute('data-key'), item.getAttribute('data-val')));
-        crearFilaEspecificacion('', '', true); // Fila de adición
+        crearFilaEspecificacion('', '', true);
     }
 
     function cancelarSeleccionProducto() {
@@ -242,8 +247,7 @@
         document.getElementById('formEstructurado').reset();
         document.getElementById('formEstructuradoProductoId').value = '';
         document.getElementById('formEstructuradoActionType').value = "directo";
-        
-        // Reset containers
+
         document.getElementById('compatibilidadContainerEstrucutrado').innerHTML = '';
         crearFilaCompatibilidad('', true);
         document.getElementById('especificacionesContainerEstrucutrado').innerHTML = '';
@@ -272,18 +276,86 @@
         document.getElementById('especificacionesContainerEstrucutrado').appendChild(div);
     }
 
-    // --- 3. LÓGICA DE LEADS ---
+    // ==========================================
+    // LÓGICA DE LEADS — ESTADO EN 3 VALORES
+    // ==========================================
+
+    /**
+     * Normaliza el valor de aprobado_por_asesor que llega desde el template.
+     * Django yesno:"true,false,null" genera la string "null" para None.
+     * Necesitamos convertirla a JS null para distinguirla de false.
+     *
+     *   "true"  → true
+     *   "false" → false
+     *   "null"  → null
+     *   true    → true   (por si ya viene como booleano)
+     *   false   → false
+     */
+    function parsearEstadoAprobacion(val) {
+        if (val === 'true' || val === true) return true;
+        if (val === 'false' || val === false) return false;
+        return null; // "null", null, undefined → pendiente sin revisar
+    }
+
+    /**
+     * Actualiza el bloque de estatus de aprobación en el formulario de la cola.
+     * Maneja los 3 estados posibles:
+     *   true  → PROSPECTO APROBADO    (verde)
+     *   false → PROSPECTO RECHAZADO   (rojo)
+     *   null  → SIN REVISAR           (amarillo)
+     */
+    function actualizarUIEstatus(val) {
+        const estado = parsearEstadoAprobacion(val);
+        const c = document.getElementById('contenedorEstatusAprobacion');
+        const t = document.getElementById('textoEstatusAprobacion');
+
+        if (estado === true) {
+            c.className = "p-3 rounded-md border border-green-200 bg-green-50 flex items-center justify-between transition";
+            t.className = "text-xs font-black tracking-tight text-green-700";
+            t.innerText = "PROSPECTO APROBADO";
+        } else if (estado === false) {
+            c.className = "p-3 rounded-md border border-red-200 bg-red-50 flex items-center justify-between transition";
+            t.className = "text-xs font-black tracking-tight text-red-700";
+            t.innerText = "PROSPECTO RECHAZADO";
+        } else {
+            c.className = "p-3 rounded-md border border-yellow-200 bg-yellow-50 flex items-center justify-between transition";
+            t.className = "text-xs font-black tracking-tight text-yellow-700";
+            t.innerText = "SIN REVISAR";
+        }
+    }
+
+    /**
+     * Igual que actualizarUIEstatus pero para el formulario del historial.
+     */
+    function actualizarUIEstatusHistorial(val) {
+        const estado = parsearEstadoAprobacion(val);
+        const c = document.getElementById('contenedorEstatusAprobacionHistorial');
+        const t = document.getElementById('textoEstatusAprobacionHistorial');
+
+        if (estado === true) {
+            c.className = "p-3 rounded-md border border-green-200 bg-green-50 flex items-center justify-between transition";
+            t.className = "text-xs font-black tracking-tight text-green-700";
+            t.innerText = "PROSPECTO APROBADO";
+        } else if (estado === false) {
+            c.className = "p-3 rounded-md border border-red-200 bg-red-50 flex items-center justify-between transition";
+            t.className = "text-xs font-black tracking-tight text-red-700";
+            t.innerText = "PROSPECTO RECHAZADO";
+        } else {
+            c.className = "p-3 rounded-md border border-yellow-200 bg-yellow-50 flex items-center justify-between transition";
+            t.className = "text-xs font-black tracking-tight text-yellow-700";
+            t.innerText = "SIN REVISAR";
+        }
+    }
+
     function cargarLeadEnFormulario(lead) {
         document.querySelectorAll('.dynamic-lead-row').forEach(row => row.classList.remove('bg-purple-50', 'border-purple-200'));
         const f1 = document.getElementById(`lead-row-${lead.id}`);
-        const f2 = document.getElementById(`lead-hist-row-${lead.id}`);
         if (f1) f1.classList.add('bg-purple-50', 'border-purple-200');
-        if (f2) f2.classList.add('bg-purple-50', 'border-purple-200');
-        
+
         switchMainTab('leads');
         document.getElementById('leadFormVacio').classList.add('hidden');
         document.getElementById('formLeadsActivo').classList.remove('hidden');
-        
+
         document.getElementById('form_lead_id').value = lead.id;
         document.getElementById('form_lead_nombre').value = lead.nombre;
         document.getElementById('form_lead_ciudad').value = lead.ciudad;
@@ -292,18 +364,12 @@
         document.getElementById('form_lead_anio').value = lead.anio;
         document.getElementById('form_lead_producto').value = lead.producto;
         document.getElementById('form_lead_direccion').value = lead.direccion;
-        
-        const checkbox = document.getElementById('form_lead_aprobado');
-        checkbox.checked = lead.aprobado;
-        actualizarUIEstatus(lead.aprobado);
-    }
 
-    function actualizarUIEstatus(isAprobado) {
-        const c = document.getElementById('contenedorEstatusAprobacion');
-        const t = document.getElementById('textoEstatusAprobacion');
-        c.className = isAprobado ? "p-3 rounded-md border border-green-200 bg-green-50 flex items-center justify-between transition" : "p-3 rounded-md border border-yellow-200 bg-yellow-50 flex items-center justify-between transition";
-        t.className = isAprobado ? "text-xs font-black tracking-tight text-green-700" : "text-xs font-black tracking-tight text-yellow-700";
-        t.innerText = isAprobado ? "PROSPECTO APROBADO" : "REVISIÓN PENDIENTE";
+        // Parsear correctamente el valor de aprobación (puede venir como string "null")
+        const estadoAprobacion = parsearEstadoAprobacion(lead.aprobado);
+        const checkbox = document.getElementById('form_lead_aprobado');
+        checkbox.checked = estadoAprobacion === true;
+        actualizarUIEstatus(estadoAprobacion);
     }
 
     function cancelarSeleccionLead() {
@@ -331,17 +397,11 @@
         document.getElementById('form_hist_lead_producto').value = lead.producto;
         document.getElementById('form_hist_lead_direccion').value = lead.direccion;
 
+        // Parsear correctamente el valor de aprobación (puede venir como string "null")
+        const estadoAprobacion = parsearEstadoAprobacion(lead.aprobado);
         const checkbox = document.getElementById('form_hist_lead_aprobado');
-        checkbox.checked = lead.aprobado;
-        actualizarUIEstatusHistorial(lead.aprobado);
-    }
-
-    function actualizarUIEstatusHistorial(isAprobado) {
-        const c = document.getElementById('contenedorEstatusAprobacionHistorial');
-        const t = document.getElementById('textoEstatusAprobacionHistorial');
-        c.className = isAprobado ? "p-3 rounded-md border border-green-200 bg-green-50 flex items-center justify-between transition" : "p-3 rounded-md border border-yellow-200 bg-yellow-50 flex items-center justify-between transition";
-        t.className = isAprobado ? "text-xs font-black tracking-tight text-green-700" : "text-xs font-black tracking-tight text-yellow-700";
-        t.innerText = isAprobado ? "PROSPECTO APROBADO" : "REVISIÓN PENDIENTE";
+        checkbox.checked = estadoAprobacion === true;
+        actualizarUIEstatusHistorial(estadoAprobacion);
     }
 
     function cancelarSeleccionLeadHistorial() {
@@ -349,6 +409,14 @@
         document.getElementById('formLeadsHistorialActivo').classList.add('hidden');
         document.getElementById('leadFormHistorialVacio').classList.remove('hidden');
         document.getElementById('formLeadsHistorialActivo').reset();
+    }
+
+    function deshabilitarBoton(id, texto) {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.disabled = true;
+            btn.innerText = texto;
+        }
     }
 </script>
 {% endblock %}

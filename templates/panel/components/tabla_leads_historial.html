@@ -1,7 +1,8 @@
 <div class="flex justify-between items-center mb-4">
     <div class="flex items-center gap-2">
-        <h3 class="text-lg font-bold text-gray-800">Registros de Leads</h3>
-        <span class="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded">{{ leads_historial|length }} Clientes Activos</span>
+        <h3 class="text-lg font-bold text-gray-800">Historial de Leads</h3>
+         
+        <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">{{ leads_historial|length }} Revisados</span>
     </div>
     <button type="button" onclick="toggleFilterPanel('historial')" class="inline-flex items-center gap-2 text-xs font-semibold text-gray-600 hover:text-green-700 border border-gray-200 rounded-md px-3 py-1.5 transition" title="Filtrar tabla de historial">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -23,6 +24,7 @@
         <button type="button" onclick="clearHistorialFilter()" class="bg-gray-200 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-md">Limpiar</button>
     </div>
 </div>
+
 <div class="overflow-x-auto border-t border-gray-200 pt-4">
     <table class="min-w-full text-sm text-left text-gray-500">
         <thead class="text-xs text-gray-700 uppercase bg-gray-50">
@@ -38,7 +40,7 @@
                 <th class="px-4 py-3">Dirección Envío</th>
                 <th class="px-4 py-3">Desea Comprar</th>
                 <th class="px-4 py-3">Lead Completo</th>
-                <th class="px-4 py-3">Aprobado Asesor</th>
+                <th class="px-4 py-3">Estatus Revisión</th>
                 <th class="px-4 py-3">Notificado</th>
                 <th class="px-4 py-3">Activo</th>
                 <th class="px-4 py-3">Creado</th>
@@ -48,7 +50,7 @@
         </thead>
         <tbody id="tablaHistorialBody">
             {% for l in leads_historial %}
-            <tr id="lead-hist-row-{{ l.id }}" 
+            <tr id="lead-hist-row-{{ l.id }}"
                 class="bg-white border-b hover:bg-purple-50 cursor-pointer transition dynamic-lead-row filter-row-historial"
                 data-nombre="{{ l.nombre|default_if_none:''|lower|escape }}"
                 data-ciudad="{{ l.ciudad|default_if_none:''|lower|escape }}"
@@ -63,7 +65,7 @@
                     anio: '{{ l.anio_vehiculo|default_if_none:""|escapejs }}',
                     direccion: '{{ l.direccion_envio|default_if_none:""|escapejs }}',
                     producto: '{% if l.producto_interes %}{{ l.producto_interes.marca }} {{ l.producto_interes.modelo }}{% else %}No especificado{% endif %}',
-                    aprobado: {{ l.aprobado_por_asesor|yesno:"true,false" }}
+                    aprobado: {{ l.aprobado_por_asesor|yesno:"true,false,null" }}
                 })">
                 <td class="px-4 py-3 text-xs font-semibold text-gray-700">{{ l.id }}</td>
                 <td class="px-4 py-3 font-medium text-gray-900">{{ l.nombre|default:"Sin Nombre" }}</td>
@@ -98,8 +100,9 @@
                     {% endif %}
                 </td>
                 <td class="px-4 py-3">
+                     
                     {% if l.aprobado_por_asesor is None %}
-                        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">Pendiente</span>
+                        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">Sin revisar</span>
                     {% elif l.aprobado_por_asesor %}
                         <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">Aprobado</span>
                     {% else %}
@@ -122,9 +125,17 @@
                 </td>
                 <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{{ l.created_at|date:"d/m/Y H:i" }}</td>
                 <td class="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{{ l.updated_at|date:"d/m/Y H:i" }}</td>
-                
+
                 <td class="px-4 py-3 text-right" onclick="event.stopPropagation();">
-                    <form action="{% url 'panel_index' %}" method="POST" onsubmit="return confirm('¿Seguro que deseas eliminar permanentemente este cliente del Directorio CRM?');" class="inline">
+                    <form action="{% url 'panel_index' %}" method="POST" class="inline mr-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action_type" value="reabrir_lead">
+                        <input type="hidden" name="lead_id" value="{{ l.id }}">
+                        <button type="submit" class="text-yellow-700 hover:text-yellow-900 font-bold text-xs bg-yellow-50 hover:bg-yellow-100 px-3 py-1.5 rounded-md border border-yellow-200 transition shadow-sm">
+                            Reabrir
+                        </button>
+                    </form>
+                    <form action="{% url 'panel_index' %}" method="POST" onsubmit="return confirm('¿Seguro que deseas eliminar permanentemente este cliente del CRM?');" class="inline">
                         {% csrf_token %}
                         <input type="hidden" name="action_type" value="eliminar_lead">
                         <input type="hidden" name="lead_id" value="{{ l.id }}">
@@ -135,7 +146,7 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="17" class="text-center py-12 text-gray-500 font-medium bg-white">Aún no hay registros de clientes aprobados en el historial del CRM.</td></tr>
+            <tr><td colspan="17" class="text-center py-12 text-gray-500 font-medium bg-white">Aún no hay leads revisados en el historial.</td></tr>
             {% endfor %}
         </tbody>
     </table>

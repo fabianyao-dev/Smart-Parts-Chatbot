@@ -1,6 +1,7 @@
 from rest_framework import viewsets, filters, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from django.db.models import Q
 import os
 import requests
 from .models import Producto, Lead, Reserva
@@ -19,19 +20,28 @@ from .webhooks import enviar_mensaje_estado_lead_por_evolution
 
 class ProductoViewSet(viewsets.ModelViewSet):
     serializer_class = ProductoSerializer
-    filter_backends = [filters.SearchFilter]
-    search_fields = ['marca', 'modelo', 'categoria', 'ciudad', 'estado']
 
     def get_queryset(self):
-        # Solo productos activos en la API
-        return Producto.objects.filter(is_active=True)
+        queryset = Producto.objects.filter(is_active=True)
+        search = self.request.query_params.get('search', None)
+
+        if search:
+            queryset = queryset.filter(
+                Q(marca__icontains=search) |
+                Q(modelo__icontains=search) |
+                Q(categoria__icontains=search) |
+                Q(ciudad__icontains=search) |
+                Q(estado__icontains=search) |
+                Q(compatibilidad_general__icontains=search)
+            )
+
+        return queryset
 
 
 class LeadViewSet(viewsets.ModelViewSet):
     serializer_class = LeadSerializer
 
     def get_queryset(self):
-        # Solo leads activos en la API
         return Lead.objects.filter(is_active=True)
 
 
@@ -77,7 +87,6 @@ def confirmar_compra(request):
             minutos=15
         )
 
-        # Marcar lead como intención de compra confirmada
         lead.desea_comprar = True
         lead.save(update_fields=['desea_comprar', 'updated_at'])
 
@@ -101,7 +110,6 @@ def confirmar_compra(request):
             status=status.HTTP_404_NOT_FOUND
         )
     except ValueError as e:
-        # Stock insuficiente: otro cliente se adelantó
         return Response(
             {"error": str(e)},
             status=status.HTTP_409_CONFLICT
@@ -177,7 +185,9 @@ def procesar_actualizacion_lead_desde_panel(request):
     try:
         lead = Lead.objects.get(id=request.POST.get('lead_id'))
         estado_aprobacion_anterior = lead.aprobado_por_asesor
-        # Solo actualiza campos enviados para evitar borrar datos en formularios parciales.
+        aprobacion_recibida = request.POST.get('aprobado_por_asesor', 'off') == 'on'
+
+        # Solo actualiza campos enviados para evitar borrar datos en formularios parciales
         if 'nombre' in request.POST:
             lead.nombre = request.POST.get('nombre')
         if 'ciudad' in request.POST:
@@ -191,35 +201,76 @@ def procesar_actualizacion_lead_desde_panel(request):
         if 'direccion_envio' in request.POST:
             lead.direccion_envio = request.POST.get('direccion_envio')
 
-        aprobado_enviado = 'aprobado_por_asesor' in request.POST
-        if aprobado_enviado:
-            lead.aprobado_por_asesor = request.POST.get('aprobado_por_asesor') == 'on'
+        # aprobado_por_asesor: True = aprobado, False = rechazado, None = pendiente
+        # Desde el formulario: checkbox "on" = True, ausente/off = False
+        lead.aprobado_por_asesor = True if aprobacion_recibida else False
 
         lead.lead_completo = bool(
             lead.nombre and
             lead.ciudad and
             lead.direccion_envio and
-            lead.aprobado_por_asesor
+            lead.aprobado_por_asesor is True
         )
         lead.save()
 
-        if aprobado_enviado and estado_aprobacion_anterior != lead.aprobado_por_asesor:
+        # Notificar al cliente solo si cambió el estado de aprobación
+        if estado_aprobacion_anterior != lead.aprobado_por_asesor:
             try:
                 enviar_mensaje_estado_lead_por_evolution(lead, lead.aprobado_por_asesor)
                 lead.notificado = True
                 lead.save(update_fields=['notificado'])
-                mensajes_estado = 'aprobado' if lead.aprobado_por_asesor else 'rechazado'
-                messages.success(request, f"¡Prospecto '{lead.nombre}' actualizado y mensaje de {mensajes_estado} enviado por WhatsApp!")
+                estado_texto = 'aprobado' if lead.aprobado_por_asesor else 'rechazado'
+                messages.success(
+                    request,
+                    f"¡Prospecto '{lead.nombre}' actualizado y mensaje de "
+                    f"{estado_texto} enviado por WhatsApp!"
+                )
                 return redirect('panel_index')
             except Exception as error_envio:
                 lead.notificado = False
                 lead.save(update_fields=['notificado'])
-                messages.warning(request, f"¡Prospecto '{lead.nombre}' actualizado, pero no se pudo enviar el mensaje por WhatsApp: {str(error_envio)}")
+                messages.warning(
+                    request,
+                    f"¡Prospecto '{lead.nombre}' actualizado, pero no se pudo "
+                    f"enviar el mensaje por WhatsApp: {str(error_envio)}"
+                )
                 return redirect('panel_index')
 
         messages.success(request, f"¡Prospecto '{lead.nombre}' actualizado!")
     except Exception as e:
         messages.error(request, f"Error al actualizar Lead: {str(e)}")
+    return redirect('panel_index')
+
+
+def procesar_reabrir_lead(request):
+    """
+    Reabre un lead para que vuelva a la cola operativa.
+    Semántica: aprobado_por_asesor = None → pendiente (sin revisar).
+    """
+    try:
+        lead = Lead.objects.get(id=request.POST.get('lead_id'))
+        campos = []
+
+        # Resetear a None = pendiente sin revisar (única semántica válida para cola)
+        if lead.aprobado_por_asesor is not None:
+            lead.aprobado_por_asesor = None
+            campos.append('aprobado_por_asesor')
+
+        if lead.notificado:
+            lead.notificado = False
+            campos.append('notificado')
+
+        if lead.lead_completo:
+            lead.lead_completo = False
+            campos.append('lead_completo')
+
+        if campos:
+            # No incluir updated_at manualmente si el modelo usa auto_now=True
+            lead.save(update_fields=campos)
+
+        messages.success(request, f"Lead '{lead.nombre or lead.telefono or lead.id}' reabierto y enviado a la cola de pendientes.")
+    except Exception as e:
+        messages.error(request, f"Error al reabrir Lead: {str(e)}")
     return redirect('panel_index')
 
 
@@ -295,6 +346,7 @@ def panel_view(request):
             'prosa': procesar_ingesta_prosa,
             'directo': procesar_ingesta_directa,
             'actualizar_lead': procesar_actualizacion_lead_desde_panel,
+            'reabrir_lead': procesar_reabrir_lead,
             'eliminar_lead': procesar_eliminar_lead,
             'actualizar_producto': procesar_actualizar_producto,
             'eliminar_producto': procesar_eliminar_producto,
@@ -308,18 +360,23 @@ def panel_view(request):
             return redirect('panel_index')
 
     # GET: lectura filtrada
+    # Semántica canónica:
+    #   aprobado_por_asesor = None  → pendiente (cola)
+    #   aprobado_por_asesor = True  → aprobado (historial)
+    #   aprobado_por_asesor = False → rechazado (historial)
     productos = Producto.objects.filter(is_active=True).order_by('-created_at')
+
     leads_pendientes = Lead.objects.filter(
         is_active=True,
-        aprobado_por_asesor=None  # null = pendiente de revisión
+        aprobado_por_asesor__isnull=True   # None = sin revisar = cola
     ).order_by('created_at')
+
     leads_historial = Lead.objects.filter(
         is_active=True,
-        aprobado_por_asesor__isnull=False  # True o False = ya revisados
+        aprobado_por_asesor__isnull=False  # True o False = revisados = historial
     ).order_by('-updated_at')
 
     productos_criticos = productos.filter(stock__lte=5)
-
     alertas_leads = leads_pendientes.count() > 0
     alertas_stock = productos_criticos.count() > 0
 
