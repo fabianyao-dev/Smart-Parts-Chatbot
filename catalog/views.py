@@ -152,24 +152,57 @@ def confirmar_compra(request):
         )
 
     try:
-        lead = Lead.objects.get(id=lead_id, is_active=True)
-        producto = Producto.objects.get(id=producto_id, is_active=True)
+        with transaction.atomic():
+            lead = Lead.objects.select_for_update().get(id=lead_id, is_active=True)
+            producto = Producto.objects.select_for_update().get(id=producto_id, is_active=True)
 
-        reserva = Reserva.crear_reserva(
-            producto=producto,
-            lead=lead,
-            cantidad=cantidad,
-            minutos=15
-        )
+            # Candado 1: mantener una sola reserva activa/no expirada por lead + producto.
+            reserva = Reserva.objects.select_for_update().filter(
+                lead=lead,
+                producto=producto,
+                activa=True,
+                expira_en__gt=timezone.now(),
+            ).order_by('-created_at').first()
 
-        lead.desea_comprar = True
-        lead.producto_interes = producto
-        lead.cantidad_solicitada = cantidad
-        lead.lead_completo = calcular_lead_completo(lead)
-        lead.save(update_fields=['desea_comprar', 'producto_interes', 'cantidad_solicitada', 'lead_completo', 'updated_at'])
+            if reserva:
+                cantidad_actual = max(reserva.cantidad or 1, 1)
+                if cantidad > cantidad_actual:
+                    adicional = cantidad - cantidad_actual
+                    if producto.stock_disponible < adicional:
+                        raise ValueError(
+                            f"Stock insuficiente. Disponible: {producto.stock_disponible}, "
+                            f"adicional solicitado: {adicional}."
+                        )
+
+                reserva.cantidad = cantidad
+                reserva.expira_en = timezone.now() + timezone.timedelta(minutes=15)
+                reserva.activa = True
+                reserva.save(update_fields=['cantidad', 'expira_en', 'activa'])
+                mensaje = "Reserva actualizada. Un asesor validará la compatibilidad."
+            else:
+                reserva = Reserva.crear_reserva(
+                    producto=producto,
+                    lead=lead,
+                    cantidad=cantidad,
+                    minutos=15
+                )
+                mensaje = "Reserva creada. Un asesor validará la compatibilidad."
+
+            # Candado 2: evitar dobles reservas activas para el mismo lead en otros productos.
+            Reserva.objects.filter(
+                lead=lead,
+                activa=True,
+                expira_en__gt=timezone.now()
+            ).exclude(id=reserva.id).update(activa=False)
+
+            lead.desea_comprar = True
+            lead.producto_interes = producto
+            lead.cantidad_solicitada = cantidad
+            lead.lead_completo = calcular_lead_completo(lead)
+            lead.save(update_fields=['desea_comprar', 'producto_interes', 'cantidad_solicitada', 'lead_completo', 'updated_at'])
 
         return Response({
-            "mensaje": "Reserva creada. Un asesor validará la compatibilidad.",
+            "mensaje": mensaje,
             "reserva_id": reserva.id,
             "cantidad": cantidad,
             "expira_en": reserva.expira_en,
@@ -294,7 +327,15 @@ def procesar_actualizacion_lead_desde_panel(request):
             # Solo cambiar estatus cuando se indique explícitamente.
             # Esto evita que una edición de campos (ej. cantidad) rechace el lead por accidente.
             if forzar_estado_venta:
-                lead.aprobado_por_asesor = True if aprobacion_recibida else False
+                nuevo_estado_venta = True if aprobacion_recibida else False
+
+                # Candado 3: evitar ciclos de descuento inconsistentes.
+                if estado_aprobacion_anterior is False and nuevo_estado_venta is True:
+                    raise ValueError("Para aprobar nuevamente una venta rechazada, primero debes reabrirla.")
+                if estado_aprobacion_anterior is True and nuevo_estado_venta is False:
+                    raise ValueError("Para rechazar una venta ya aprobada, primero reabre la venta.")
+
+                lead.aprobado_por_asesor = nuevo_estado_venta
 
             # Al aprobar venta, confirmar reserva activa y descontar stock real.
             # Si no existe reserva, se descuenta 1 unidad del producto asociado al lead.
@@ -320,7 +361,11 @@ def procesar_actualizacion_lead_desde_panel(request):
                         producto.save(update_fields=['stock', 'updated_at'])
 
                 if lead.aprobado_por_asesor is False:
-                    Reserva.objects.filter(lead=lead, activa=True).update(activa=False)
+                    Reserva.objects.filter(
+                        lead=lead,
+                        activa=True,
+                        expira_en__gt=timezone.now()
+                    ).update(activa=False)
 
             lead.lead_completo = calcular_lead_completo(lead)
             lead.save()
