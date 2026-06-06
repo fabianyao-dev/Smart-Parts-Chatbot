@@ -1,0 +1,226 @@
+{
+  "name": "Producto-Prosa",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ingesta-prosa",
+        "responseMode": "lastNode",
+        "responseData": "allEntries",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -384,
+        -32
+      ],
+      "id": "aa3f312d-534f-4c38-bb58-22a4d51b1b14",
+      "name": "Webhook",
+      "webhookId": "8ee782e3-a0af-461b-b661-eb2467c71793"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-3.1-flash-lite",
+          "mode": "list",
+          "cachedResultName": "models/gemini-3.1-flash-lite"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prosa }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "builtInTools": {},
+        "options": {
+          "systemMessage": "Eres un motor de estructuración de datos universal. Tu única tarea es convertir el texto de entrada en el siguiente objeto JSON exacto, sin markdown ni explicaciones:\n\n{\n  \"marca\": \"...\",\n  \"modelo\": \"...\",\n  \"categoria\": \"...\",\n  \"precio\": 0.00,\n  \"moneda\": \"MXN\",\n  \"ciudad\": \"...\",\n  \"estado\": \"...\",\n  \"stock\": 0,\n  \"compatibilidad_general\": [\"...\"],\n  \"especificaciones\": {\n    \"clave_dinamica\": \"valor\"\n  }\n}\n\nREGLA ABSOLUTA PARA \"especificaciones\":\nActúa como un extractor exhaustivo de atributos. Analiza el texto palabra por palabra. Cualquier característica, métrica, propiedad, condición, cualidad o dato descriptivo que aporte información sobre el producto y que NO pertenezca a los campos principales de arriba, DEBE ser extraído aquí.\nInventa las llaves en formato 'snake_case' basándote en la naturaleza del dato encontrado. Crea tantas llaves como conceptos distintos existan en el texto. Tu objetivo es que el 100% de la información útil del texto quede capturada dentro de este JSON.",
+          "temperature": 0
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        160,
+        144
+      ],
+      "id": "b23fed1b-4229-4e68-93c6-6ab5f00a91e4",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "eIpnVZFLm1o1M2nm",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst resultados = [];\n \nfor (const item of items) { \n  const rawString = item.json.content.parts[0].text; \n  const cleanString = rawString.replace(/```json/g, '').replace(/```/g, '').trim(); \n  const parsedData = JSON.parse(cleanString);\n   \n  resultados.push(parsedData);\n}\n \nreturn resultados;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        -32
+      ],
+      "id": "01311147-0d75-479d-b519-13046b07a382",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://smart-parts-chatbot.onrender.com/api/productos/",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        688,
+        -32
+      ],
+      "id": "89390b65-feda-4d95-a9d3-c78f17f8a052",
+      "name": "HTTP Request",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Obtenemos el JSON completo\nconst inputJson = $input.first().json;\n\n// 2. Extracción Inteligente\nconst textoMasivo = (inputJson.body && inputJson.body.texto_masivo) \n                    ? inputJson.body.texto_masivo \n                    : inputJson.texto_masivo;\n\nif (!textoMasivo) {\n  throw new Error(\"No se detectó el 'texto_masivo'.\");\n}\n\n// 3. Cortamos usando Regex universal para múltiples saltos de línea\nconst parrafos = textoMasivo.split(/\\r?\\n\\s*\\r?\\n/);\n\n// 4. Formateamos estrictamente como n8n exige para crear MÚLTIPLES ITEMS\nconst itemsSeparados = parrafos\n  .filter(p => p.trim() !== '') \n  .map(p => {\n    return {\n      json: {\n        prosa: p.trim()\n      }\n    };\n  }); \n\n// 5. Devolvemos el array. n8n detectará mágicamente que son N items independientes.\nreturn itemsSeparados;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -176,
+        -32
+      ],
+      "id": "daf4ca45-9f1a-4d57-a6c6-9b0fe5db5631",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "batchSize": "={{ 1 }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        16,
+        -32
+      ],
+      "id": "3ad5ad81-d137-4d66-9514-28c98bcf17b3",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "amount": 4
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        176
+      ],
+      "id": "08e399cd-5075-4072-ae4c-b8462c09658b",
+      "name": "Wait",
+      "webhookId": "7d969f9f-17cf-4436-bad9-55c3607f11ea"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "307a8b0b-8a63-469a-8347-629f9b34af5d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "09f8040b781c20409f77ecd205e6e89117ded49e7e58fdb85605011536bce8b7"
+  },
+  "id": "doniWZUPzGj63OSH",
+  "tags": []
+}

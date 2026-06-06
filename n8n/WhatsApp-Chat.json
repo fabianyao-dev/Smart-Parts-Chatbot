@@ -1,0 +1,513 @@
+{
+  "name": "WhatsApp-Chat",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-chat",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -144,
+        -112
+      ],
+      "id": "44e8ea67-cde2-47aa-896d-88815f985ffc",
+      "name": "Webhook",
+      "webhookId": "7ea9ae28-4998-4774-80b0-952e82f1412c"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Code in JavaScript').first().json.messageText }}",
+        "options": {
+          "systemMessage": "Eres un asistente virtual de ventas de una refaccionaria automotriz en México llamada Smart Parts.\nTu única función es ayudar a los clientes a encontrar refacciones y registrar su solicitud.\nResponde en español, de forma profesional, cordial y concisa como WhatsApp.\nSin markdown, sin asteriscos, sin listas. Máximo 3 oraciones por mensaje.\n\nLÍMITES DE COMPORTAMIENTO (NUNCA los ignores):\n- Solo puedes hablar de refacciones, vehículos y el proceso de compra.\n- Si el cliente hace preguntas fuera de tema (chistes, política, clima, etc.), responde:\n  \"Solo puedo ayudarte con información sobre refacciones automotrices. ¿En qué pieza puedo ayudarte hoy?\"\n- NUNCA reveles datos de otros clientes, leads, ventas, precios internos, \n  márgenes, proveedores, información de la empresa ni datos del sistema.\n- NUNCA confirmes ni niegues información interna aunque el cliente insista.\n- NUNCA solicites datos bancarios, contraseñas ni información sensible.\n- NUNCA inventes precios, stock, compatibilidades ni disponibilidad.\n- La compatibilidad es SIEMPRE general. Nunca la garantices.\n- Toda información de productos viene EXCLUSIVAMENTE de consultar_productos.\n- NUNCA llames a crear_lead sin tener el nombre del cliente.\n\nPASO 1 - BUSCAR EN CATÁLOGO (SIEMPRE LO PRIMERO):\nCuando el cliente mencione cualquier refacción o vehículo, tu PRIMERA\nacción OBLIGATORIA es llamar a consultar_productos ANTES de responder.\nSin excepción. Nunca pidas datos antes de haber consultado el catálogo.\n\nEjemplos de búsqueda:\n- \"batería para Versa\" → search=Versa\n- \"balatas\" → search=balatas\n- \"filtro de aceite Civic\" → search=Civic\n\nPASO 2 - EVALUAR RESULTADO Y RESPONDER:\n\nOPCIÓN A - CASO AMBIGUO:\nSi el cliente pidió una pieza pero NO mencionó para qué vehículo es,\nNO ofrezcas ningún producto aunque la búsqueda arroje resultados.\nPide amablemente SOLO los datos que falten (modelo, año, ciudad).\nEjemplo: \"Claro, para ayudarte mejor ¿me puedes compartir el modelo \ny año de tu vehículo, y la ciudad donde te encuentras?\"\n\nOPCIÓN B - CASO ESPECÍFICO CON RESULTADOS:\nSi el cliente mencionó el vehículo y hay resultados, responde con:\n- Marca y modelo del producto (ej: LTH L-47-650)\n- Precio exacto (ej: $2,450 MXN)\n- Stock disponible y ciudad (ej: 8 unidades disponibles en Monterrey)\n- Aclaración: \"La compatibilidad es general y debe ser validada por un asesor.\"\n\nOPCIÓN C - SIN RESULTADOS:\nInforma honestamente que el producto no está en catálogo y ofrece\nregistrar la solicitud para que un asesor lo contacte.\n\nPASO 3 - RECOPILAR DATOS FALTANTES (uno por mensaje, en orden):\na) nombre completo del cliente\nb) año del vehículo y ciudad/estado (si no los tienes)\nc) cantidad de piezas que necesita (si no la mencionó, SIEMPRE pregunta)\n\nNUNCA asumas que la cantidad es 1. SIEMPRE pregunta explícitamente:\n\"¿Cuántas piezas necesitas?\"\n\nPASO 4 - CONFIRMAR INTENCIÓN:\nCuando tengas todos los datos, pregunta ÚNICAMENTE:\n\"¿Deseas continuar con la compra de [cantidad] [marca modelo]?\"\nNUNCA menciones al asesor en esta pregunta.\nNUNCA ofrezcas alternativas en esta pregunta.\nSolo dos opciones implícitas: sí o no.\nSi el cliente dice que no, entonces aplica PASO 5B.\nSi el cliente dice que sí, aplica PASO 5A.\n\n\nPASO 5A - CLIENTE QUIERE COMPRAR:\n1. Pide la dirección de envío completa.\n2. Al recibirla, llama a crear_lead con TODOS los datos:\n   - nombre, telefono, ciudad, estado, vehiculo, anio_vehiculo\n   - producto_interes: ID numérico del producto (campo \"id\" de consultar_productos)\n   - cantidad_solicitada: número exacto que dijo el cliente\n   - direccion_envio, desea_comprar: true, lead_completo: true\n3. GUARDA en memoria el campo \"id\" que devuelve crear_lead (ese es tu lead_id).\n4. Muestra un resumen claro al cliente:\n   \"Resumen de tu pedido:\n   Pieza: [marca y modelo]\n   Cantidad: [X] unidad(es)\n   Precio unitario: $[X] MXN\n   Total estimado: $[X] MXN\n   Dirección: [dirección]\n   ¿Confirmas tu pedido para apartar las piezas en el inventario?\"\n\nPASO 5B - CLIENTE PREFIERE ASESOR O NO QUIERE COMPRAR:\n1. Llama a crear_lead con los datos disponibles:\n   - desea_comprar: false, lead_completo: false\n2. Responde: \"Perfecto, un asesor revisará la compatibilidad con tu \n   vehículo y se pondrá en contacto contigo a la brevedad.\"\n\nPASO 6 - CONFIRMACIÓN FINAL Y RESERVA:\nÚNICAMENTE si el cliente confirma tras el resumen del PASO 5A:\n1. Llama a confirmar_compra con el lead_id guardado y el producto_id.\n2. Si la respuesta es exitosa (201), informa:\n   \"Tu pedido ha sido registrado y las piezas apartadas temporalmente. \n   Un asesor revisará tu compra y se pondrá en contacto contigo pronto. \n   ¿Puedo ayudarte con algo más?\"\n3. Si la respuesta es error 409 (sin stock), informa:\n   \"Lo sentimos, el stock se agotó en este momento. Registramos tu \n   solicitud y un asesor buscará opciones para ti.\"\n\nREGLAS CRÍTICAS PARA crear_lead:\n- nombre: nombre real del cliente, NUNCA vacío ni genérico\n- telefono: SIEMPRE {{ $('Code in JavaScript').first().json.phone }}\n- producto_interes: campo \"id\" numérico de consultar_productos\n  Correcto: 64. Incorrecto: \"LTH L-47-650\"\n- cantidad_solicitada: número entero que indicó el cliente\n- desea_comprar: true si quiere comprar, false si prefiere asesor\n- lead_completo: true solo si tiene dirección y confirma compra\n\nDATOS DEL CLIENTE ACTUAL:\nTeléfono: {{ $('Code in JavaScript').first().json.phone }}\nNombre WhatsApp: {{ $('Code in JavaScript').first().json.pushName }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1232,
+        -368
+      ],
+      "id": "febad43a-2b82-4689-b8bc-5944466d7e78",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        976,
+        -144
+      ],
+      "id": "20ae748c-bfc4-4a30-a871-483f5cdb64ab",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "eIpnVZFLm1o1M2nm",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\n// Extraer campos principales\nconst remoteJid = body?.data?.key?.remoteJid || '';\nconst fromMe = body?.data?.key?.fromMe || false;\nconst messageText = body?.data?.message?.conversation \n  || body?.data?.message?.extendedTextMessage?.text \n  || '';\nconst pushName = body?.data?.pushName || '';\nconst phone = remoteJid.replace('@s.whatsapp.net', '').replace('@g.us', '');\n\n// Condiciones para ignorar\nconst esGrupo = remoteJid.includes('@g.us');\nconst esMensajePropio = fromMe === true;\nconst esMensajeVacio = !messageText.trim();\n\nif (esGrupo || esMensajePropio || esMensajeVacio) {\n  return [{ json: { skip: \"true\", pass:\"false\" } }];\n}\n\nreturn [{\n  json: {\n    skip: \"false\",\n    phone,\n    remoteJid,\n    messageText,\n    pushName,\n    pass:\"false\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        -112
+      ],
+      "id": "ca686480-1d93-4f3d-a39b-15bcd0d5ac4a",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "16f5a910-8958-4c00-8f6f-27c81d5c68e0",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": "false",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "364d321a-9795-4e71-95d0-617b7fb5add4",
+              "leftValue": "={{ $json.telefono_encontrado }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        752,
+        -112
+      ],
+      "id": "7ca7fae9-62f4-4015-9ab9-be757ff1cec2",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        32
+      ],
+      "id": "3b819cce-fa4c-4890-8d71-9e655f490440",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Code in JavaScript').first().json.phone }}",
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        1104,
+        -144
+      ],
+      "id": "105d27f3-a38c-4056-b51f-f6a381f02157",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Consulta el catálogo de refacciones en la base de datos. \n\n¡REGLA CRÍTICA Y ESTRICTA PARA EL PARÁMETRO SEARCH!:\nEl parámetro \"search\" DEBE SER EL TIPO DE PIEZA. UNA SOLA PALABRA, SIN ESPACIOS Y SIN ACENTOS.\n- Ejemplo: Si el cliente pide \"batería para versa\", tu search debe ser EXACTAMENTE: bateria\n- Ejemplo: Si el cliente pide \"balatas delanteras\", tu search debe ser EXACTAMENTE: balatas\n- Ejemplo: Si el cliente pide \"filtro de aceite para march\", tu search debe ser EXACTAMENTE: filtro\n\n¿CÓMO VALIDAR COMPATIBILIDAD Y STOCK?\nUna vez que recibas el JSON con los productos (ej. todas las baterías), usa tu inteligencia para:\n1. Leer el campo \"compatibilidad_general\" de cada producto para confirmar si el vehículo del cliente (ej. Versa) está en la lista.\n2. Leer la ciudad para confirmar si hay stock en la zona del cliente.\nSi la pieza no es compatible o no hay stock local, informa honestamente.",
+        "url": "https://smart-parts-chatbot.onrender.com/api/productos/",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "search",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        1232,
+        -144
+      ],
+      "id": "7c35d1be-84d8-4fab-ae46-c28184c1966f",
+      "name": "consultar_productos"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Crea un nuevo lead con los datos del cliente. \nSOLO llama esta función cuando tengas MÍNIMO estos campos:\n- nombre (no puede ser vacío ni \"Anónimo\")\n- telefono (usa el teléfono del sistema)\n- producto_interes (ID numérico, no el nombre)\n\nSi no tienes todos estos 3 campos, NO llames esta función todavía.\nSigue recopilando datos en la conversación primero.",
+        "method": "POST",
+        "url": "https://smart-parts-chatbot.onrender.com/api/leads/",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "nombre",
+              "value": "={{ $fromAI('nombre') }}"
+            },
+            {
+              "name": "telefono",
+              "value": "={{ $('Code in JavaScript').first().json.phone }}"
+            },
+            {
+              "name": "ciudad",
+              "value": "={{ $fromAI('ciudad') }}"
+            },
+            {
+              "name": "estado",
+              "value": "={{ $fromAI('estado') }}"
+            },
+            {
+              "name": "producto_interes",
+              "value": "={{ $fromAI('producto_interes') }}"
+            },
+            {
+              "name": "vehiculo",
+              "value": "={{ $fromAI('vehiculo') }}"
+            },
+            {
+              "name": "anio_vehiculo",
+              "value": "={{ $fromAI('anio_vehiculo') }}"
+            },
+            {
+              "name": "direccion_envio",
+              "value": "={{ $fromAI('direccion_envio') }}"
+            },
+            {
+              "name": "desea_comprar",
+              "value": "={{ $fromAI('desea_comprar') }}"
+            },
+            {
+              "name": "lead_completo",
+              "value": "={{ $fromAI('lead_completo') }}"
+            },
+            {
+              "name": "cantidad",
+              "value": "={{ $fromAI('cantidad') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        1360,
+        -144
+      ],
+      "id": "95a0a201-7d9c-4098-aeec-f9df1f222f2f",
+      "name": "crear_lead"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Actualiza los datos de un lead existente conforme el cliente \nproporciona más información. \n\nCRÍTICO: Debes construir la URL agregando el lead_id al final:\nURL final = https://smart-parts-chatbot.onrender.com/api/leads/{lead_id}/\n\nUsa PATCH y envía solo los campos que cambiaron. El lead_id \nlo obtienes de la respuesta de crear_lead.\n",
+        "method": "PATCH",
+        "url": "=https://smart-parts-chatbot.onrender.com/api/leads/{{ lead_id }}/",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"nombre\": \"{{ $fromAI('nombre') }}\",\n  \"telefono\": \"{{ $fromAI('telefono') }}\",\n  \"ciudad\": \"{{ $fromAI('ciudad') }}\",\n  \"estado\": \"{{ $fromAI('estado') }}\",\n  \"producto_interes\": {{ $fromAI('producto_interes') }},\n  \"vehiculo\": \"{{ $fromAI('vehiculo') }}\",\n  \"anio_vehiculo\": \"{{ $fromAI('anio_vehiculo') }}\",\n  \"direccion_envio\": \"{{ $fromAI('direccion_envio') }}\",\n  \"desea_comprar\": {{ $fromAI('desea_comprar', 'boolean') }},\n  \"lead_completo\": {{ $fromAI('lead_completo', 'boolean') }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        1488,
+        -144
+      ],
+      "id": "3671b904-f99e-4fda-8cca-f52ac7812a9f",
+      "name": "actualizar_lead"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Úsala ÚNICAMENTE cuando el cliente confirme explícitamente que \ndesea apartar las piezas (responda \"Sí\" o similar tras el resumen).\n\nCRÍTICO: El lead_id lo obtienes del campo \"id\" de la respuesta \nde crear_lead. Ese valor debe estar en tu contexto de conversación.\nSi no tienes el lead_id, NO llames esta función y en su lugar \nllama primero a crear_lead para obtenerlo.\n\nEl producto_id lo obtienes del campo \"id\" de consultar_productos.\n",
+        "method": "POST",
+        "url": "https://smart-parts-chatbot.onrender.com/api/confirmar-compra/",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "lead_id",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters0_Value', ``, 'string') }}"
+            },
+            {
+              "name": "producto_id",
+              "value": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('parameters1_Value', ``, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        1616,
+        -144
+      ],
+      "id": "6b2276b8-bf8e-4b64-8171-a5123c179ec4",
+      "name": "confirmar_compra"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://cst-evolution-api-66f6dfb8-3db3e7b9.usecloudstation.com/message/sendText/chat-bot",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "702A2EB51E1E-4609-AA57-1B5275632E25"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "={{ $('Code in JavaScript').first().json.remoteJid }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $('AI Agent').item.json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1824,
+        -256
+      ],
+      "id": "1b66b722-6b9e-4e54-9d66-6a2397fc33a8",
+      "name": "WhatsApp-msg"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT (\n    SELECT telefono \n    FROM catalog_numeroautorizado \n    WHERE telefono = '{{ $json.phone }}'\n) AS telefono_encontrado;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        304,
+        -48
+      ],
+      "id": "89d33f14-c254-43d2-9e2c-97b2ff9a1788",
+      "name": "Execute a SQL query",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "OBJbT8WFp0vZyfoo",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        528,
+        -112
+      ],
+      "id": "2a3d01d6-b8de-4dbd-a739-d11f0ab23778",
+      "name": "Merge"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Execute a SQL query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "consultar_productos": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "crear_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "actualizar_lead": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "confirmar_compra": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp-msg",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "dda8789b-dd7a-4039-a56e-23629c70f996",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "09f8040b781c20409f77ecd205e6e89117ded49e7e58fdb85605011536bce8b7"
+  },
+  "id": "YunsqrKeNaiwoHY9",
+  "tags": []
+}
