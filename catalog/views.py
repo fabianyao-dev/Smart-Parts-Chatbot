@@ -17,7 +17,11 @@ from .webhooks import enviar_mensaje_estado_lead_por_evolution
 from django.db.models import  Q
 
 
- 
+def redirect_to_panel(tab='productos'):
+    """Redirige al panel preservando el tab activo."""
+    from django.urls import reverse
+    url = reverse('panel_index')
+    return redirect(f"{url}?tab={tab}")
 
 class ProductoViewSet(viewsets.ModelViewSet):
     serializer_class = ProductoSerializer
@@ -222,12 +226,12 @@ def confirmar_compra(request):
 def procesar_ingesta_prosa(request):
     texto_masivo = request.POST.get('texto_masivo')
     if not texto_masivo:
-        return redirect('panel_index')
+        return redirect_to_panel('productos')
 
     webhook_url = getattr(settings, 'N8N_WEBHOOK_URL', os.getenv('N8N_WEBHOOK_URL'))
     if not webhook_url:
         messages.error(request, "Error de sistema: Falta configurar el webhook de n8n.")
-        return redirect('panel_index')
+        return redirect_to_panel('productos')
 
     try:
         response = requests.post(
@@ -241,7 +245,7 @@ def procesar_ingesta_prosa(request):
             messages.warning(request, f"n8n respondió con error: Código {response.status_code}")
     except requests.exceptions.RequestException as e:
         messages.error(request, f"Fallo de conexión con n8n: {str(e)}")
-    return redirect('panel_index')
+    return redirect_to_panel('productos')
 
 
 def procesar_ingesta_directa(request):
@@ -277,7 +281,7 @@ def procesar_ingesta_directa(request):
             messages.success(request, f"¡Inventario actualizado para {producto.marca}!")
     except Exception as e:
         messages.error(request, f"Error al guardar: {str(e)}")
-    return redirect('panel_index')
+    return redirect_to_panel('productos')
 
 
 def procesar_actualizacion_lead_desde_panel(request):
@@ -366,7 +370,7 @@ def procesar_actualizacion_lead_desde_panel(request):
                     f"¡Prospecto '{lead.nombre}' actualizado y mensaje de "
                     f"venta {estado_texto} enviado por WhatsApp!"
                 )
-                return redirect('panel_index')
+                return redirect_to_panel('historial')
             except Exception as error_envio:
                 lead.notificado = False
                 lead.save(update_fields=['notificado'])
@@ -374,13 +378,13 @@ def procesar_actualizacion_lead_desde_panel(request):
                     request,
                     f"¡Prospecto '{lead.nombre}' actualizado, pero no se pudo "
                     f"enviar el mensaje por WhatsApp: {str(error_envio)}"
-                )
-                return redirect('panel_index')
+                            )
+                return redirect_to_panel('historial')
 
         messages.success(request, f"¡Prospecto '{lead.nombre}' actualizado!")
     except Exception as e:
         messages.error(request, f"Error al actualizar Lead: {str(e)}")
-    return redirect('panel_index')
+    return redirect_to_panel('historial')
 
 
 def procesar_reabrir_lead(request):
@@ -421,7 +425,7 @@ def procesar_reabrir_lead(request):
         messages.success(request, f"Lead '{lead.nombre or lead.telefono or lead.id}' reabierto y enviado a la cola de venta.")
     except Exception as e:
         messages.error(request, f"Error al reabrir Lead: {str(e)}")
-    return redirect('panel_index')
+    return redirect_to_panel('historial')
 
 
 def procesar_eliminar_lead(request):
@@ -432,7 +436,7 @@ def procesar_eliminar_lead(request):
         messages.success(request, "¡Prospecto eliminado del Panel!")
     except Exception as e:
         messages.error(request, f"Error al eliminar Lead: {str(e)}")
-    return redirect('panel_index')
+    return redirect_to_panel('historial')
 
 
 def procesar_actualizar_producto(request):
@@ -468,7 +472,7 @@ def procesar_actualizar_producto(request):
         messages.error(request, "Error: El producto ya no existe.")
     except Exception as e:
         messages.error(request, f"Error crítico al actualizar Producto: {str(e)}")
-    return redirect('panel_index')
+    return redirect_to_panel('productos')
 
 
 def procesar_eliminar_producto(request):
@@ -479,7 +483,7 @@ def procesar_eliminar_producto(request):
         messages.success(request, "¡Producto retirado del catálogo!")
     except Exception as e:
         messages.error(request, f"Error al eliminar Producto: {str(e)}")
-    return redirect('panel_index')
+    return redirect_to_panel('productos')
 
  
 
@@ -534,23 +538,37 @@ def panel_view(request):
     leads_pendientes.sort(key=lambda lead: lead.created_at)
 
     productos_criticos = productos.filter(stock__lte=5)
+
+    leads_incompletos = [
+        lead for lead in leads_historial
+        if not lead.lead_completo
+        and lead.aprobado_por_asesor is None
+        and lead.desea_comprar is not True
+    ]
+
     alertas_leads = len(leads_pendientes) > 0
     alertas_stock = productos_criticos.count() > 0
+    alertas_incompletos = len(leads_incompletos) > 0
 
     total_alertas = 0
     if alertas_leads:
         total_alertas += 1
     if alertas_stock:
         total_alertas += 1
-        numeros_autorizados = NumeroAutorizado.objects.all().order_by('-agregado_en')
+    if alertas_incompletos:
+        total_alertas += 1
+
+    numeros_autorizados = NumeroAutorizado.objects.all().order_by('-agregado_en')
 
     context = {
         'productos': productos,
         'leads_pendientes': leads_pendientes,
         'leads_historial': leads_historial,
+        'leads_incompletos': leads_incompletos,
         'productos_criticos': productos_criticos,
         'alertas_leads': alertas_leads,
         'alertas_stock': alertas_stock,
+        'alertas_incompletos': alertas_incompletos,
         'total_alertas': total_alertas,
         'numeros_autorizados': numeros_autorizados,
     }
@@ -576,4 +594,4 @@ def procesar_eliminar_numero(request):
     if numero_id:
         NumeroAutorizado.objects.filter(id=numero_id).delete()
         messages.success(request, "Número eliminado de la lista de acceso.")
-    return redirect('panel_index')
+    return redirect_to_panel('productos')

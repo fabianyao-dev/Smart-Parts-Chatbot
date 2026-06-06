@@ -11,70 +11,160 @@
     <nav class="bg-blue-900 text-white p-4 shadow-md">
       <div class="container mx-auto flex justify-between items-center">
         <h1 class="text-xl font-bold">Smart-Parts Panel</h1>
-        
+
         <div class="flex items-center gap-4">
-          
           <div class="relative inline-block text-left">
-            <button id="btnNotificaciones" onclick="toggleNotificaciones()" class="relative p-2 text-blue-200 hover:text-white transition focus:outline-none mt-1">
-              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            <button
+              id="btnNotificaciones"
+              onclick="toggleNotificaciones()"
+              class="relative p-2 text-blue-200 hover:text-white transition focus:outline-none mt-1"
+            >
+              <svg
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                />
               </svg>
-              
+
               {% if total_alertas > 0 %}
-              <span id="badgeNotificacion" class="absolute top-1.5 right-1.5 flex h-3 w-3">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+              <span
+                id="badgeNotificacion"
+                class="absolute top-1.5 right-1.5 flex h-3 w-3"
+              >
+                <span
+                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"
+                ></span>
+                <span
+                  class="relative inline-flex rounded-full h-3 w-3 bg-red-500"
+                ></span>
               </span>
               {% endif %}
             </button>
 
-            <div id="panelNotificaciones" class="hidden absolute right-0 mt-2 w-80 rounded-lg shadow-2xl bg-white ring-1 ring-black ring-opacity-5 z-50 divide-y divide-gray-100 text-gray-800">
-              <div class="px-4 py-3 bg-gray-50 rounded-t-lg flex justify-between items-center">
-                <span class="text-xs font-bold text-gray-700 uppercase tracking-wider">Alertas</span>
-                <span id="contadorAlertas" class="{% if total_alertas > 0 %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-600{% endif %} text-[10px] font-black px-2 py-0.5 rounded-full">
+            <div
+              id="panelNotificaciones"
+              class="hidden absolute right-0 mt-2 w-80 rounded-lg shadow-2xl bg-white ring-1 ring-black ring-opacity-5 z-50 divide-y divide-gray-100 text-gray-800"
+            >
+              <div
+                class="px-4 py-3 bg-gray-50 rounded-t-lg flex justify-between items-center"
+              >
+                <span
+                  class="text-xs font-bold text-gray-700 uppercase tracking-wider"
+                  >Alertas</span
+                >
+                <span
+                  id="contadorAlertas"
+                  class="{% if total_alertas > 0 %}bg-red-100 text-red-800{% else %}bg-gray-100 text-gray-600{% endif %} text-[10px] font-black px-2 py-0.5 rounded-full"
+                >
                   {{ total_alertas }} Nuevas
                 </span>
               </div>
               <div class="max-h-64 overflow-y-auto">
-                
                 {% if total_alertas == 0 %}
                 <div class="p-6 text-center">
-                    <p class="text-xs font-medium text-gray-500">Todo al día. No hay alertas pendientes.</p>
+                  <p class="text-xs font-medium text-gray-500">
+                    Todo al día. No hay alertas pendientes.
+                  </p>
                 </div>
-                {% endif %}
-
-                {% if alertas_leads %}
-                <div class="flex items-start gap-3 p-4 hover:bg-blue-50 cursor-pointer border-b border-gray-50" onclick="if(typeof aplicarFiltroNotificacion === 'function') { aplicarFiltroNotificacion('leads_pendientes'); } else if(typeof switchMainTab === 'function') { switchMainTab('leads'); } toggleNotificaciones();">
-                  <span class="w-2 h-2 rounded-full bg-yellow-500 mt-1.5"></span>
+                {% endif %} {% if alertas_leads %}
+                <div
+                  class="flex items-start gap-3 p-4 hover:bg-blue-50 cursor-pointer border-b border-gray-50"
+                  onclick="
+                    if (typeof aplicarFiltroNotificacion === 'function') {
+                      aplicarFiltroNotificacion('leads_pendientes');
+                    } else if (typeof switchMainTab === 'function') {
+                      switchMainTab('leads');
+                    }
+                    toggleNotificaciones();
+                  "
+                >
+                  <span
+                    class="w-2 h-2 rounded-full bg-yellow-500 mt-1.5"
+                  ></span>
                   <div>
-                    <p class="text-xs font-bold text-gray-900">Ventas en Cola ({{ leads_pendientes|length }})</p>
-                    <p class="text-xs text-gray-600 mt-0.5">Tienes leads que desean comprar pendientes de aprobacion de venta.</p>
+                    <p class="text-xs font-bold text-gray-900">
+                      Ventas en Cola ({{ leads_pendientes|length }})
+                    </p>
+                    <p class="text-xs text-gray-600 mt-0.5">
+                      Tienes leads que desean comprar pendientes de aprobacion
+                      de venta.
+                    </p>
                   </div>
                 </div>
-                {% endif %}
-
-                {% if alertas_stock %}
-                <div class="flex items-start gap-3 p-4 hover:bg-blue-50 cursor-pointer border-b border-gray-50" onclick="if(typeof aplicarFiltroNotificacion === 'function') { aplicarFiltroNotificacion('stock_critico'); } else if(typeof switchMainTab === 'function') { switchMainTab('productos'); } toggleNotificaciones();">
+                {% endif %} {% if alertas_stock %}
+                <div
+                  class="flex items-start gap-3 p-4 hover:bg-blue-50 cursor-pointer border-b border-gray-50"
+                  onclick="
+                    if (typeof aplicarFiltroNotificacion === 'function') {
+                      aplicarFiltroNotificacion('stock_critico');
+                    } else if (typeof switchMainTab === 'function') {
+                      switchMainTab('productos');
+                    }
+                    toggleNotificaciones();
+                  "
+                >
                   <span class="w-2 h-2 rounded-full bg-red-500 mt-1.5"></span>
                   <div>
-                    <p class="text-xs font-bold text-gray-900">Stock Crítico Detectado</p>
-                    <p class="text-xs text-gray-600 mt-0.5">Tienes {{ productos_criticos|length }} producto(s) con 5 unidades o menos en inventario.</p>
+                    <p class="text-xs font-bold text-gray-900">
+                      Stock Crítico Detectado
+                    </p>
+                    <p class="text-xs text-gray-600 mt-0.5">
+                      Tienes {{ productos_criticos|length }} producto(s) con 5
+                      unidades o menos en inventario.
+                    </p>
+                  </div>
+                </div>
+                {% endif %} {% if alertas_incompletos %}
+                <div
+                  class="flex items-start gap-3 p-4 hover:bg-blue-50 cursor-pointer border-b border-gray-50"
+                  onclick="
+                    if (typeof aplicarFiltroNotificacion === 'function') {
+                      aplicarFiltroNotificacion('leads_incompletos');
+                    } else if (typeof switchMainTab === 'function') {
+                      switchMainTab('historial');
+                    }
+                    toggleNotificaciones();
+                  "
+                >
+                  <span
+                    class="w-2 h-2 rounded-full bg-orange-400 mt-1.5"
+                  ></span>
+                  <div>
+                    <p class="text-xs font-bold text-gray-900">
+                      Leads Incompletos ({{ leads_incompletos|length }})
+                    </p>
+                    <p class="text-xs text-gray-600 mt-0.5">
+                      Tienes leads sin stock confirmado o con datos pendientes
+                      en Gestión.
+                    </p>
                   </div>
                 </div>
                 {% endif %}
-
               </div>
-              
+
               {% if total_alertas > 0 %}
               <div class="p-2 text-center bg-gray-50 rounded-b-lg">
-                <button type="button" onclick="limpiarNotificaciones()" class="text-[11px] font-bold text-blue-600 hover:text-blue-800 uppercase tracking-tight">Ocultar notificaciones</button>
+                <button
+                  type="button"
+                  onclick="limpiarNotificaciones()"
+                  class="text-[11px] font-bold text-blue-600 hover:text-blue-800 uppercase tracking-tight"
+                >
+                  Ocultar notificaciones
+                </button>
               </div>
               {% endif %}
             </div>
-          </div> 
- 
+          </div>
+
           <span>Hola, {{ user.username }}</span>
-          
+
           <form method="post" action="{% url 'logout' %}" class="m-0 p-0">
             {% csrf_token %}
             <button
@@ -100,39 +190,43 @@
         </div>
         {% endfor %}
       </div>
-      {% endif %} 
-      
-      {% block content %} {% endblock %}
+      {% endif %} {% block content %} {% endblock %}
     </main>
 
     <script>
       function toggleNotificaciones() {
-          const panel = document.getElementById('panelNotificaciones');
-          if (panel) panel.classList.toggle('hidden');
+        const panel = document.getElementById("panelNotificaciones");
+        if (panel) panel.classList.toggle("hidden");
       }
 
       // Cerrar al hacer clic afuera
-      window.addEventListener('click', function(e) {
-          const panel = document.getElementById('panelNotificaciones');
-          const btn = document.getElementById('btnNotificaciones');
-          if (panel && btn && !panel.contains(e.target) && !btn.contains(e.target)) {
-              panel.classList.add('hidden');
-          }
+      window.addEventListener("click", function (e) {
+        const panel = document.getElementById("panelNotificaciones");
+        const btn = document.getElementById("btnNotificaciones");
+        if (
+          panel &&
+          btn &&
+          !panel.contains(e.target) &&
+          !btn.contains(e.target)
+        ) {
+          panel.classList.add("hidden");
+        }
       });
 
       function limpiarNotificaciones() {
-          const badge = document.getElementById('badgeNotificacion');
-          if (badge) badge.classList.add('hidden');
-          
-          const c = document.getElementById('contadorAlertas');
-          if(c) { 
-              c.className = "bg-gray-100 text-gray-600 text-[10px] font-medium px-2 py-0.5 rounded-full"; 
-              c.innerText = "0 Alertas"; 
-          }
-          toggleNotificaciones();
+        const badge = document.getElementById("badgeNotificacion");
+        if (badge) badge.classList.add("hidden");
+
+        const c = document.getElementById("contadorAlertas");
+        if (c) {
+          c.className =
+            "bg-gray-100 text-gray-600 text-[10px] font-medium px-2 py-0.5 rounded-full";
+          c.innerText = "0 Alertas";
+        }
+        toggleNotificaciones();
       }
     </script>
-    
+
     {% block extra_js %}{% endblock %}
   </body>
 </html>

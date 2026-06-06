@@ -54,7 +54,7 @@
     </div>
 </div>
 
-<script> 
+<script>
 
     function normalizeFilterValue(value) {
         return (value || '').toString().trim().toLowerCase();
@@ -69,6 +69,10 @@
         const panel = document.getElementById(`filterPanel-${tabla}`);
         if (panel) panel.classList.toggle('hidden');
     }
+
+    // ==========================================
+    // FILTROS PRODUCTOS
+    // ==========================================
 
     function applyProductosFilter() {
         const termino = normalizeFilterValue(document.getElementById('filterProductosTermino')?.value);
@@ -104,6 +108,10 @@
         applyProductosFilter();
     }
 
+    // ==========================================
+    // FILTROS LEADS (COLA DE VENTA)
+    // ==========================================
+
     function applyLeadsFilter() {
         const nombre = normalizeFilterValue(document.getElementById('filterLeadsNombre')?.value);
         const producto = normalizeFilterValue(document.getElementById('filterLeadsProducto')?.value);
@@ -131,6 +139,10 @@
         applyLeadsFilter();
     }
 
+    // ==========================================
+    // FILTROS HISTORIAL (GESTIÓN DE LEADS)
+    // ==========================================
+
     function applyHistorialFilter() {
         const nombre = normalizeFilterValue(document.getElementById('filterHistorialNombre')?.value);
         const vehiculo = normalizeFilterValue(document.getElementById('filterHistorialVehiculo')?.value);
@@ -143,7 +155,9 @@
             const vehiculoOk = containsFilterValue(row.dataset.vehiculo, vehiculo);
             const ciudadOk = containsFilterValue(row.dataset.ciudad, ciudad);
             const estadoOk = containsFilterValue(row.dataset.estado, estado);
-            const completoOk = !completo || normalizeFilterValue(row.dataset.completo) === completo;
+            // CORREGIDO: comparación explícita string vs string
+            const rowCompleto = normalizeFilterValue(row.dataset.completo);
+            const completoOk = !completo || rowCompleto === completo;
 
             row.style.display = nombreOk && vehiculoOk && ciudadOk && estadoOk && completoOk ? '' : 'none';
         });
@@ -158,6 +172,10 @@
         applyHistorialFilter();
     }
 
+    // ==========================================
+    // FILTROS DESDE NOTIFICACIONES
+    // ==========================================
+
     function aplicarFiltroNotificacion(tipo) {
         if (tipo === 'stock_critico') {
             switchMainTab('productos');
@@ -168,8 +186,28 @@
         if (tipo === 'leads_pendientes') {
             switchMainTab('leads');
             clearLeadsFilter();
+            return;
         }
-    } 
+        if (tipo === 'leads_incompletos') {
+            switchMainTab('historial');
+            // Limpiar primero para no acumular filtros anteriores
+            document.getElementById('filterHistorialNombre').value = '';
+            document.getElementById('filterHistorialVehiculo').value = '';
+            document.getElementById('filterHistorialCiudad').value = '';
+            document.getElementById('filterHistorialEstado').value = '';
+            // Aplicar solo filtro de incompletos (false)
+            const filtroCompleto = document.getElementById('filterHistorialCompleto');
+            if (filtroCompleto) {
+                filtroCompleto.value = 'no';
+                applyHistorialFilter();
+            }
+            return;
+        }
+    }
+
+    // ==========================================
+    // NAVEGACIÓN DE TABS
+    // ==========================================
 
     function switchMainTab(seccion) {
         const tabs = ['productos', 'leads', 'historial', 'accesos'];
@@ -189,7 +227,10 @@
             }
         });
     }
- 
+
+    // ==========================================
+    // FORMULARIO PRODUCTOS
+    // ==========================================
 
     function switchMetodo(metodo) {
         const btnProsa = document.getElementById('btnProsa');
@@ -200,11 +241,13 @@
         if (metodo === 'prosa') {
             btnProsa.className = "w-1/2 text-center py-2 rounded-md font-medium transition bg-blue-900 text-white shadow-sm";
             btnEstructurado.className = "w-1/2 text-center py-2 rounded-md font-medium transition text-gray-600 hover:text-gray-900";
-            formProsa.classList.remove('hidden'); formEstructurado.classList.add('hidden');
+            formProsa.classList.remove('hidden');
+            formEstructurado.classList.add('hidden');
         } else {
             btnEstructurado.className = "w-1/2 text-center py-2 rounded-md font-medium transition bg-blue-900 text-white shadow-sm";
             btnProsa.className = "w-1/2 text-center py-2 rounded-md font-medium transition text-gray-600 hover:text-gray-900";
-            formEstructurado.classList.remove('hidden'); formProsa.classList.add('hidden');
+            formEstructurado.classList.remove('hidden');
+            formProsa.classList.add('hidden');
         }
     }
 
@@ -281,13 +324,16 @@
         document.getElementById('especificacionesContainerEstrucutrado').appendChild(div);
     }
 
- 
+    // ==========================================
+    // ESTADO DE APROBACIÓN
+    // ==========================================
+
     function parsearEstadoAprobacion(val) {
         if (val === 'true' || val === true) return true;
         if (val === 'false' || val === false) return false;
-        return null; // "null", null, undefined → pendiente sin revisar
+        return null;
     }
- 
+
     function actualizarUIEstatus(val) {
         const estado = parsearEstadoAprobacion(val);
         const c = document.getElementById('contenedorEstatusAprobacion');
@@ -307,7 +353,7 @@
             t.innerText = "SIN REVISAR";
         }
     }
- 
+
     function actualizarUIEstatusHistorial(val) {
         const estado = parsearEstadoAprobacion(val);
         const c = document.getElementById('contenedorEstatusAprobacionHistorial');
@@ -328,6 +374,10 @@
         }
     }
 
+    // ==========================================
+    // FORMULARIOS LEADS
+    // ==========================================
+
     function cargarLeadEnFormulario(lead) {
         document.querySelectorAll('.dynamic-lead-row').forEach(row => row.classList.remove('bg-purple-50', 'border-purple-200'));
         const f1 = document.getElementById(`lead-row-${lead.id}`);
@@ -345,7 +395,7 @@
         document.getElementById('form_lead_anio').value = lead.anio;
         document.getElementById('form_lead_producto').value = lead.producto;
         document.getElementById('form_lead_cantidad').value = lead.cantidad || 1;
-        document.getElementById('form_lead_direccion').value = lead.direccion; 
+        document.getElementById('form_lead_direccion').value = lead.direccion;
         const estadoAprobacion = parsearEstadoAprobacion(lead.aprobado);
         const checkbox = document.getElementById('form_lead_aprobado');
         checkbox.checked = estadoAprobacion === true;
@@ -376,7 +426,7 @@
         document.getElementById('form_hist_lead_anio').value = lead.anio;
         document.getElementById('form_hist_lead_producto').value = lead.producto;
         document.getElementById('form_hist_lead_cantidad').value = lead.cantidad || 1;
-        document.getElementById('form_hist_lead_direccion').value = lead.direccion; 
+        document.getElementById('form_hist_lead_direccion').value = lead.direccion;
         const estadoAprobacion = parsearEstadoAprobacion(lead.aprobado);
         const checkbox = document.getElementById('form_hist_lead_aprobado');
         checkbox.checked = estadoAprobacion === true;
