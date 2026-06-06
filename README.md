@@ -160,10 +160,10 @@ Smart-Parts-Chatbot/
 │   └── urls.py            # URLs raíz del proyecto
 ├── templates/
 │   ├── base.html
+│   └── login/
 │   └── panel/             # Templates del panel de administración
 │       ├── index.html
-│       └── components/    # Tablas, formularios, accesos
-│       └── login/ 
+│       └── components/    # Tablas, formularios, accesos 
 ├── n8n/
 │   ├── chatbot-whatsapp.json   # Workflow del chatbot
 │   └── etl-catalogo.json       # Workflow de ingesta de catálogo
@@ -417,7 +417,7 @@ Contraseña: [proporcionada por separado]
 Hola, busco una batería para un Versa.
 ```
 Respuesta esperada: El bot consulta el catálogo y presenta la batería LTH L-47-650 con precio y stock, luego pide el año del vehículo y la ciudad.
-
+![Caso1](./imagenes/caso1.png)
 **Caso 2 — Producto ambiguo:**
 ```
 Necesito unas balatas.
@@ -429,15 +429,26 @@ Respuesta esperada: El bot pide modelo, año del vehículo y ciudad antes de mos
 ¿Tienen filtro de aceite para un March?
 ```
 Respuesta esperada: El bot informa honestamente que no encontró el producto y ofrece registrar la solicitud.
+![Caso2y3](./imagenes/caso2y3.png)
 
-**Caso 4 — Flujo completo de compra:**
+**Caso 4 — Flujo completo de compra: (Propuesta propia)**
 Seguir el flujo completo: buscar batería → dar datos → confirmar compra → dar dirección → confirmar pedido → verificar lead en el panel → aprobar desde el panel → verificar notificación en WhatsApp.
+![AprobacionPanel](./imagenes/aprobacion_venta.png)
+![VentaAprovadoa](./imagenes/venta_aprovada.png)
+![VentaRechazada](./imagenes/venta_rechazada.png)
 
-**Caso 5 — Tema fuera de contexto:**
+**Caso 5 - Producto ambiguo:**
 ```
-Cuéntame un chiste.
+Necesito unas balatas.
 ```
-Respuesta esperada: El bot redirige amablemente al tema de refacciones.
+Respuesta esperada: Claro. Para ayudarte mejor, ¿me puedes compartir el modelo, año de tu vehículo y la ciudad donde te encuentras?
+![Caso5](./imagenes/caso5.png)
+**Caso 6 - Producto fuera de catálogo:**
+```
+¿Tienen filtro de aceite para March?
+```
+Respuesta esperada: Por ahora no encontré filtros de aceite en el catálogo disponible. Puedo registrar tu solicitud para que un asesor la revise. ¿Me compartes tu nombre, ciudad y estado?
+![Caso6](./imagenes/caso6.png)
 
 ---
 
