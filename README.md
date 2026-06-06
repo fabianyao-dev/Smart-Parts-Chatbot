@@ -418,8 +418,11 @@ Hola, busco una batería para un Versa.
 ```
 Respuesta esperada: El bot consulta el catálogo y presenta la batería LTH L-47-650 con precio y stock, luego pide el año del vehículo y la ciudad.
 
+
 *Chat del caso 1 propuesto*
+
 ![Caso1](./imagenes/caso1.png)
+
 
 **Caso 2 — Producto ambiguo:**
 ```
@@ -438,21 +441,28 @@ Seguir el flujo completo: buscar batería → dar datos → confirmar compra →
 
 ![Caso2y3](./imagenes/caso2y3.png)
 
+
 *Panel de aprobación de venta*
 
 ![AprobacionPanel](./imagenes/aprobacion_venta.png)
+
+
 *Venta aprovada*
 
 ![VentaAprovadoa](./imagenes/venta_aprovada.png)
+
+
 *Venta rechazada*
 
 ![VentaRechazada](./imagenes/venta_rechazada.png)
+
 
 **Caso 4 - Producto ambiguo:**
 ```
 Necesito unas balatas.
 ```
 Respuesta esperada: Claro. Para ayudarte mejor, ¿me puedes compartir el modelo, año de tu vehículo y la ciudad donde te encuentras?
+
 
 *Chat del caso 4 propuesto*
 
@@ -466,9 +476,11 @@ Respuesta esperada: Claro. Para ayudarte mejor, ¿me puedes compartir el modelo,
 
 Respuesta esperada: Por ahora no encontré filtros de aceite en el catálogo disponible. Puedo registrar tu solicitud para que un asesor la revise. ¿Me compartes tu nombre, ciudad y estado?
 
+
 *Chat del caso 5 propuesto*
 
 ![Caso5](./imagenes/caso5.png)
+
 
 ---
 
