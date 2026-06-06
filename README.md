@@ -423,9 +423,9 @@ Respuesta esperada: El bot consulta el catálogo y presenta la batería LTH L-47
 
 **Caso 2 — Producto ambiguo:**
 ```
-Necesito unas balatas.
+Se agregan los datos que pide el chatbot.
 ```
-Respuesta esperada: El bot pide modelo, año del vehículo y ciudad antes de mostrar productos.
+Respuesta esperada: El bot pide modelo, año del vehículo, ciudad, cantidad, confirmacion de deseo de compra y direccion de envio antes de mostrar productos, como se ve en la Imagen del siguiente caso.
 
 
 
@@ -435,13 +435,17 @@ Seguir el flujo completo: buscar batería → dar datos → confirmar compra →
 ```
 
 *Chat del caso 2 y 3 propuesto*
+
 ![Caso2y3](./imagenes/caso2y3.png)
 
 *Panel de aprobación de venta*
+
 ![AprobacionPanel](./imagenes/aprobacion_venta.png)
 *Venta aprovada*
+
 ![VentaAprovadoa](./imagenes/venta_aprovada.png)
 *Venta rechazada*
+
 ![VentaRechazada](./imagenes/venta_rechazada.png)
 
 **Caso 4 - Producto ambiguo:**
@@ -451,14 +455,19 @@ Necesito unas balatas.
 Respuesta esperada: Claro. Para ayudarte mejor, ¿me puedes compartir el modelo, año de tu vehículo y la ciudad donde te encuentras?
 
 *Chat del caso 4 propuesto*
+
 ![Caso4](./imagenes/caso4.png)
+
+
 **Caso 5 - Producto fuera de catálogo:**
 ```
 ¿Tienen filtro de aceite para March?
 ```
 
-*Chat del caso 5 propuesto*
 Respuesta esperada: Por ahora no encontré filtros de aceite en el catálogo disponible. Puedo registrar tu solicitud para que un asesor la revise. ¿Me compartes tu nombre, ciudad y estado?
+
+*Chat del caso 5 propuesto*
+
 ![Caso5](./imagenes/caso5.png)
 
 ---
