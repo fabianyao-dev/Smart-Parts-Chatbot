@@ -405,9 +405,9 @@ Contraseña: [proporcionada por separado]
 
 ### Pasos para probar el chatbot
 
-1. Ingresar al panel y agregar su número en "Accesos WP"
+1. Ingresar al panel y agregar su número en "Accesos WP" con el prefijo 521
 2. Avisar al candidato para verificar que n8n esté activo
-3. Enviar un mensaje de WhatsApp al número de la refaccionaria
+3. Enviar un mensaje de WhatsApp al número de la refaccionaria (9616603311)
 4. Seguir el flujo de conversación
 
 ### Casos de prueba sugeridos
