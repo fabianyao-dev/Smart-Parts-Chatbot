@@ -417,38 +417,49 @@ Contraseña: [proporcionada por separado]
 Hola, busco una batería para un Versa.
 ```
 Respuesta esperada: El bot consulta el catálogo y presenta la batería LTH L-47-650 con precio y stock, luego pide el año del vehículo y la ciudad.
+
+*Chat del caso 1 propuesto*
 ![Caso1](./imagenes/caso1.png)
+
 **Caso 2 — Producto ambiguo:**
 ```
 Necesito unas balatas.
 ```
 Respuesta esperada: El bot pide modelo, año del vehículo y ciudad antes de mostrar productos.
 
-**Caso 3 — Producto fuera de catálogo:**
+
+
+**Caso 3 — Flujo completo de compra: (Propuesta propia)**
 ```
-¿Tienen filtro de aceite para un March?
+Seguir el flujo completo: buscar batería → dar datos → confirmar compra → dar dirección → confirmar pedido → verificar lead en el panel → aprobar desde el panel → verificar notificación en WhatsApp.
 ```
-Respuesta esperada: El bot informa honestamente que no encontró el producto y ofrece registrar la solicitud.
+
+*Chat del caso 2 y 3 propuesto*
 ![Caso2y3](./imagenes/caso2y3.png)
 
-**Caso 4 — Flujo completo de compra: (Propuesta propia)**
-Seguir el flujo completo: buscar batería → dar datos → confirmar compra → dar dirección → confirmar pedido → verificar lead en el panel → aprobar desde el panel → verificar notificación en WhatsApp.
+*Panel de aprobación de venta*
 ![AprobacionPanel](./imagenes/aprobacion_venta.png)
+*Venta aprovada*
 ![VentaAprovadoa](./imagenes/venta_aprovada.png)
+*Venta rechazada*
 ![VentaRechazada](./imagenes/venta_rechazada.png)
 
-**Caso 5 - Producto ambiguo:**
+**Caso 4 - Producto ambiguo:**
 ```
 Necesito unas balatas.
 ```
 Respuesta esperada: Claro. Para ayudarte mejor, ¿me puedes compartir el modelo, año de tu vehículo y la ciudad donde te encuentras?
-![Caso5](./imagenes/caso5.png)
-**Caso 6 - Producto fuera de catálogo:**
+
+*Chat del caso 4 propuesto*
+![Caso4](./imagenes/caso4.png)
+**Caso 5 - Producto fuera de catálogo:**
 ```
 ¿Tienen filtro de aceite para March?
 ```
+
+*Chat del caso 5 propuesto*
 Respuesta esperada: Por ahora no encontré filtros de aceite en el catálogo disponible. Puedo registrar tu solicitud para que un asesor la revise. ¿Me compartes tu nombre, ciudad y estado?
-![Caso6](./imagenes/caso6.png)
+![Caso5](./imagenes/caso5.png)
 
 ---
 
