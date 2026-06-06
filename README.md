@@ -159,10 +159,11 @@ Smart-Parts-Chatbot/
 ├── core/
 │   └── urls.py            # URLs raíz del proyecto
 ├── templates/
+│   ├── base.html
 │   └── panel/             # Templates del panel de administración
-│       ├── base.html
 │       ├── index.html
 │       └── components/    # Tablas, formularios, accesos
+│       └── login/ 
 ├── n8n/
 │   ├── chatbot-whatsapp.json   # Workflow del chatbot
 │   └── etl-catalogo.json       # Workflow de ingesta de catálogo
