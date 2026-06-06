@@ -176,13 +176,13 @@ Smart-Parts-Chatbot/
 
 ## 6. Modelo LLM Utilizado
 
-### Modelo: Gemini 1.5 Flash (gemini-1.5-flash)
+### Modelo: Gemini 3.1 Flash (gemini-3.1-flash)
 
 **¿Por qué se eligió?**
 
-Para una prueba técnica con presupuesto controlado, Gemini 1.5 Flash ofrece el mejor balance entre capacidad y costo:
+Para una prueba técnica con presupuesto controlado, Gemini 3.1 Flash ofrece el mejor balance entre capacidad y costo:
 
-- Google AI Studio ofrece un tier gratuito de 15 RPM y 1 millón de tokens por día, suficiente para una demostración completa
+- Google AI Studio ofrece un tier gratuito de una buena cantidad RPM y tokens por día, suficiente para una demostración completa
 - Ventana de contexto de 1 millón de tokens, ideal para conversaciones largas con historial completo
 - Integración nativa en n8n sin configuración adicional
 - Latencia baja, crítica para respuestas en tiempo real por WhatsApp
